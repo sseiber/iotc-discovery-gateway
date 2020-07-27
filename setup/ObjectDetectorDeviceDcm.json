@@ -552,6 +552,53 @@
                             "en": "Stop Image Processing"
                         },
                         "name": "cmStopImageProcessing"
+                    },
+                    {
+                        "@type": "Command",
+                        "commandType": "asynchronous",
+                        "response": {
+                            "@type": "SchemaField",
+                            "displayName": {
+                                "en": "Command Response"
+                            },
+                            "name": "CommandResponse",
+                            "schema": {
+                                "@type": "Object",
+                                "displayName": {
+                                    "en": "Object"
+                                },
+                                "fields": [
+                                    {
+                                        "@type": "SchemaField",
+                                        "displayName": {
+                                            "en": "Status Code"
+                                        },
+                                        "name": "CommandResponseParams_StatusCode",
+                                        "schema": "long"
+                                    },
+                                    {
+                                        "@type": "SchemaField",
+                                        "displayName": {
+                                            "en": "Message"
+                                        },
+                                        "name": "CommandResponseParams_Message",
+                                        "schema": "string"
+                                    },
+                                    {
+                                        "@type": "SchemaField",
+                                        "displayName": {
+                                            "en": "Data"
+                                        },
+                                        "name": "CommandResponseParams_Data",
+                                        "schema": "string"
+                                    }
+                                ]
+                            }
+                        },
+                        "displayName": {
+                            "en": "Capture Image"
+                        },
+                        "name": "cmCaptureImage"
                     }
                 ]
             }

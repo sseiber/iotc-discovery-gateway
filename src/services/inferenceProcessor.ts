@@ -7,7 +7,7 @@ import {
 } from './objectDetectorDevice';
 import * as moment from 'moment';
 import * as Wreck from '@hapi/wreck';
-import { bind } from '../utils';
+import { bind, sleep } from '../utils';
 
 export interface IObjectInference {
     type: string;
@@ -140,6 +140,14 @@ export class InferenceProcessorService {
         });
     }
 
+    public async captureImage(): Promise<string> {
+        while (!this.lastInferenceImage) {
+            await sleep(25);
+        }
+
+        return this.uploadInferenceImage(Buffer.from(this.lastInferenceImage));
+    }
+
     private async inferenceTimer(): Promise<void> {
         try {
             if (this.iotcDevice.debugTelemetry() === true) {
@@ -152,7 +160,7 @@ export class InferenceProcessorService {
 
                     this.server.log(['InferenceProcessor', 'info'], `InferenceTimeout reached`);
 
-                    await this.uploadInferenceImage();
+                    await this.uploadInferenceImage(Buffer.from(this.lastInferenceImage));
                 }
 
                 this.inferenceStartTime = moment.utc();
@@ -164,7 +172,7 @@ export class InferenceProcessorService {
                     this.lastInferenceTime = moment.utc(0);
                     this.inferenceStartTime = moment.utc();
 
-                    await this.uploadInferenceImage();
+                    await this.uploadInferenceImage(Buffer.from(this.lastInferenceImage));
                 }
             }
         }
@@ -173,12 +181,14 @@ export class InferenceProcessorService {
         }
     }
 
-    private async uploadInferenceImage(): Promise<void> {
-        const imageUrl = await this.iotcDevice.uploadContent(this.lastInferenceImage);
+    private async uploadInferenceImage(imageBuffer: Buffer): Promise<string> {
+        const imageUrl = await this.iotcDevice.uploadContent(imageBuffer);
 
         await this.iotcDevice.updateDeviceProperties({
             [IotcObjectDetectorInterface.Property.InferenceImageUrl]: imageUrl
         });
+
+        return imageUrl;
     }
 
     private async processImage(imageData: Buffer): Promise<IObjectInference[]> {

@@ -42,8 +42,8 @@
                             "createOptions": "{\"HostConfig\":{\"PortBindings\":{\"9072/tcp\":[{\"HostPort\":\"9072\"}]},\"Binds\":[\"/data/storage:/data/storage\",\"/data/storage:/data/media/\"]}}"
                         },
                         "env": {
-                            "sampleImage_analyze": {
-                                "value": "https://raw.githubusercontent.com/Azure/live-video-analytics/master/ref-apps/lva-edge-iot-central-gateway/setup/class_images/analyze_icon.jpg"
+                            "blobStoreRoot": {
+                                "value": "https://iotcsafileupload.blob.core.windows.net/file-upload-sample/"
                             }
                         },
                         "type": "docker",

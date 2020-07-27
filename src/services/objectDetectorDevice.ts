@@ -16,7 +16,10 @@ import {
     DeviceMethodRequest,
     DeviceMethodResponse
 } from 'azure-iot-device';
+import { join as pathJoin } from 'path';
+import * as moment from 'moment';
 import { bind, defer, emptyObj } from '../utils';
+import { Readable } from 'stream';
 
 export interface IClientConnectResult {
     clientConnectionStatus: boolean;
@@ -99,7 +102,8 @@ export const IotcObjectDetectorInterface = {
     },
     Command: {
         StartImageProcessing: 'cmStartImageProcessing',
-        StopImageProcessing: 'cmStopImageProcessing'
+        StopImageProcessing: 'cmStopImageProcessing',
+        CaptureImage: 'cmCaptureImage'
     }
 };
 
@@ -117,6 +121,7 @@ export class ObjectDetectorDevice implements IDeviceTelemetry {
     private deviceId: string;
     private deviceName: string;
     private rtspUrl: string;
+    private blobStoreRoot: string;
 
     private deviceClient: IoTDeviceClient = null;
     private deviceTwin: Twin = null;
@@ -138,6 +143,8 @@ export class ObjectDetectorDevice implements IDeviceTelemetry {
         this.deviceId = deviceId;
         this.deviceName = deviceName;
         this.rtspUrl = rtspUrl;
+
+        this.blobStoreRoot = this.config.get('blobStoreRoot');
     }
 
     public async init(): Promise<void> {
@@ -266,9 +273,37 @@ export class ObjectDetectorDevice implements IDeviceTelemetry {
             return '';
         }
 
-        this.server.log(['ObjectDetectorDevice', 'info'], `uploadContent - data length: ${data.length}`);
+        let imageUrl = '';
 
-        return 'http://test/url';
+        try {
+            const blobName = `${moment.utc().format('YYYYMMDD-HHmmss')}.jpg`;
+
+            this.server.log(['ObjectDetectorDevice', 'info'], `uploadContent - data length: ${data.length}, blobName: ${blobName}`);
+
+            const readableStream = new Readable({
+                read() {
+                    this.push(data);
+                    this.push(null);
+                }
+            });
+
+            await this.deviceClient.uploadToBlob(blobName, readableStream, data.length);
+
+            imageUrl = pathJoin(this.blobStoreRoot, this.deviceId, blobName);
+
+            await this.sendMeasurement({
+                [IotcObjectDetectorInterface.Event.UploadImage]: imageUrl
+            });
+
+            await this.updateDeviceProperties({
+                [IotcObjectDetectorInterface.Property.InferenceImageUrl]: imageUrl
+            });
+        }
+        catch (ex) {
+            this.server.log(['ObjectDetectorDevice', 'error'], `Error during deviceClient.uploadToBlob: ${ex.message}`);
+        }
+
+        return imageUrl;
     }
 
     private async getDeviceProperties(): Promise<IDeviceProperties> {
@@ -330,6 +365,7 @@ export class ObjectDetectorDevice implements IDeviceTelemetry {
 
             this.deviceClient.onDeviceMethod(IotcObjectDetectorInterface.Command.StartImageProcessing, this.startImageProcessingDirectMethod);
             this.deviceClient.onDeviceMethod(IotcObjectDetectorInterface.Command.StopImageProcessing, this.stopImageProcessingDirectMethod);
+            this.deviceClient.onDeviceMethod(IotcObjectDetectorInterface.Command.CaptureImage, this.captureImageDirectMethod);
 
             this.server.log(['ObjectDetectorDevice', 'info'], `IoT Central successfully connected device: ${this.deviceId}`);
 
@@ -458,11 +494,9 @@ export class ObjectDetectorDevice implements IDeviceTelemetry {
         await commandResponse.send(200);
         await this.updateDeviceProperties({
             [IotcObjectDetectorInterface.Command.StartImageProcessing]: {
-                value: {
-                    [CommandResponseParams.StatusCode]: 202,
-                    [CommandResponseParams.Message]: `Received ${IotcObjectDetectorInterface.Command.StartImageProcessing} command for deviceId: ${this.deviceId}`,
-                    [CommandResponseParams.Data]: ''
-                }
+                [CommandResponseParams.StatusCode]: 202,
+                [CommandResponseParams.Message]: `Received ${IotcObjectDetectorInterface.Command.StartImageProcessing} command for deviceId: ${this.deviceId}`,
+                [CommandResponseParams.Data]: ''
             }
         });
     }
@@ -484,6 +518,38 @@ export class ObjectDetectorDevice implements IDeviceTelemetry {
                 value: {
                     [CommandResponseParams.StatusCode]: 202,
                     [CommandResponseParams.Message]: `Received ${IotcObjectDetectorInterface.Command.StopImageProcessing} command for deviceId: ${this.deviceId}`,
+                    [CommandResponseParams.Data]: ''
+                }
+            }
+        });
+    }
+
+    @bind
+    // @ts-ignore (commandRequest)
+    private async captureImageDirectMethod(commandRequest: DeviceMethodRequest, commandResponse: DeviceMethodResponse) {
+        this.server.log(['ObjectDetectorDevice', 'info'], `Received device command: ${IotcObjectDetectorInterface.Command.CaptureImage}`);
+
+        if (!this.inferenceProcessor) {
+            await commandResponse.send(200);
+            await this.updateDeviceProperties({
+                [IotcObjectDetectorInterface.Command.CaptureImage]: {
+                    value: {
+                        [CommandResponseParams.StatusCode]: 202,
+                        [CommandResponseParams.Message]: `Unable to capture image. Image processing is not active`,
+                        [CommandResponseParams.Data]: ''
+                    }
+                }
+            });
+        }
+
+        const imageUrl = await this.inferenceProcessor.captureImage();
+
+        await commandResponse.send(200);
+        await this.updateDeviceProperties({
+            [IotcObjectDetectorInterface.Command.CaptureImage]: {
+                value: {
+                    [CommandResponseParams.StatusCode]: 202,
+                    [CommandResponseParams.Message]: `The command ${IotcObjectDetectorInterface.Command.CaptureImage} for deviceId: ${this.deviceId} ${imageUrl ? 'completed successfully' : 'failed'}`,
                     [CommandResponseParams.Data]: ''
                 }
             }
