@@ -36,17 +36,22 @@
                     }
                 },
                 "modules": {
-                    "IotcDiscoveryGatewayModule": {
+                    "DiscoveryGatewayModule": {
                         "settings": {
                             "image": "<YOUR_MODULE_IMAGE_NAME>",
                             "createOptions": "{\"HostConfig\":{\"PortBindings\":{\"9072/tcp\":[{\"HostPort\":\"9072\"}]},\"Binds\":[\"/data/storage:/data/storage\",\"/data/storage:/data/media/\"]}}"
+                        },
+                        "env": {
+                            "sampleImage_analyze": {
+                                "value": "https://raw.githubusercontent.com/Azure/live-video-analytics/master/ref-apps/lva-edge-iot-central-gateway/setup/class_images/analyze_icon.jpg"
+                            }
                         },
                         "type": "docker",
                         "status": "running",
                         "restartPolicy": "always",
                         "version": "1.0"
                     },
-                    "yolov3": {
+                    "Yolov3": {
                         "settings": {
                             "image": "mcr.microsoft.com/lva-utilities/yolov3-onnx:1.0",
                             "createOptions": "{\"HostConfig\":{\"CpuShares\": \"512\"}}"
@@ -63,14 +68,14 @@
             "properties.desired": {
                 "schemaVersion": "1.0",
                 "routes": {
-                    "IotcDiscoveryGatewayModuleOutput": "FROM /messages/modules/IotcDiscoveryGatewayModuleModule/* INTO $upstream"
+                    "DiscoveryGatewayModuleOutput": "FROM /messages/modules/DiscoveryGatewayModuleModule/* INTO $upstream"
                 },
                 "storeAndForwardConfiguration": {
                     "timeToLiveSecs": 7200
                 }
             }
         },
-        "IotcDiscoveryGatewayModule": {
+        "DiscoveryGatewayModule": {
             "properties.desired": {
                 "wpDebugTelemetry": false
             }

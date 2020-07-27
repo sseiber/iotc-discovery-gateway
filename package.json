@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@hapi/boom": "^9.1.0",
-    "@hapi/hapi": "^19.1.1",
+    "@hapi/hapi": "^19.2.0",
     "@hapi/wreck": "^17.0.0",
     "azure-iot-device": "1.17.0",
     "azure-iot-device-mqtt": "1.15.0",

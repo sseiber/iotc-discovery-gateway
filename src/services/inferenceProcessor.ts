@@ -188,10 +188,12 @@ export class InferenceProcessorService {
                 json: true
             };
 
-            return this.postYolo3Request(options);
+            const result = await this.postYolo3Request(options);
+
+            return result;
         }
         catch (ex) {
-            this.server.log(['InferenceProcessor', 'error'], `Error processing image - yolov3 requests failed: ${ex.message}`);
+            this.server.log(['InferenceProcessor', 'error'], `Error processing image - Yolov3 requests failed: ${ex.message}`);
         }
 
         return [];
@@ -236,11 +238,11 @@ export class InferenceProcessorService {
 
     private async postYolo3Request(options): Promise<IObjectInference[]> {
         try {
-            const hostName = this.config.get('yoloHost') || 'yolov3';
-            const { res, payload } = await Wreck.post(`http://${hostName}:8080/score`, options);
+            const hostName = this.config.get('yoloHost') || 'Yolov3';
+            const { res, payload } = await Wreck.post(`http://${hostName}/score`, options);
 
             if (res.statusCode < 200 || res.statusCode > 299) {
-                this.server.log(['ipcCameraInterface', 'error'], `Response status code = ${res.statusCode}`);
+                this.server.log(['InferenceProcessor', 'error'], `Response status code = ${res.statusCode}`);
 
                 throw new Error(`Error statusCode: ${res.statusCode}, ${(payload as any)?.message || payload || 'An error occurred'}`);
             }
@@ -248,7 +250,7 @@ export class InferenceProcessorService {
             return (payload as any)?.inferences || [];
         }
         catch (ex) {
-            this.server.log(['ipcCameraInterface', 'error'], `makeRequest: ${ex.message}`);
+            this.server.log(['InferenceProcessor', 'error'], `postYolo3Request: ${ex.message}`);
             throw ex;
         }
     }

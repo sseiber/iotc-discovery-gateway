@@ -60,8 +60,10 @@ enum DeviceState {
     Active = 'active'
 }
 
-enum StartImageProcessingRequestParams {
-    RtspUrl = 'StartImageProcessingRequestParams_RtspUrl'
+enum CommandResponseParams {
+    StatusCode = 'CommandResponseParams_StatusCode',
+    Message = 'CommandResponseParams_Message',
+    Data = 'CommandResponseParams_Data'
 }
 
 export const IotcObjectDetectorInterface = {
@@ -109,7 +111,7 @@ export interface IDeviceTelemetry {
     uploadContent(data: Buffer): Promise<string>;
 }
 
-export class IotcObjectDetectorDevice implements IDeviceTelemetry {
+export class ObjectDetectorDevice implements IDeviceTelemetry {
     private server: Server;
     private config: ConfigService;
     private deviceId: string;
@@ -139,7 +141,7 @@ export class IotcObjectDetectorDevice implements IDeviceTelemetry {
     }
 
     public async init(): Promise<void> {
-        this.server.log(['IotcObjectDetectorDevice', 'info'], 'initialize');
+        this.server.log(['ObjectDetectorDevice', 'info'], 'initialize');
     }
 
     public debugTelemetry() {
@@ -148,7 +150,7 @@ export class IotcObjectDetectorDevice implements IDeviceTelemetry {
 
     @bind
     public async getHealth(): Promise<number> {
-        if (this.healthState === HealthState.Good) {
+        if (this.healthState === HealthState.Good && this.inferenceProcessor) {
             this.healthState = await this.inferenceProcessor.getHealth();
         }
 
@@ -160,7 +162,7 @@ export class IotcObjectDetectorDevice implements IDeviceTelemetry {
     }
 
     public async deleteDevice(): Promise<void> {
-        this.server.log(['IotcObjectDetectorDevice', 'info'], `Deleting device instance for deviceId: ${this.deviceId}`);
+        this.server.log(['ObjectDetectorDevice', 'info'], `Deleting device instance for deviceId: ${this.deviceId}`);
 
         try {
             const clientInterface = this.deviceClient;
@@ -172,7 +174,7 @@ export class IotcObjectDetectorDevice implements IDeviceTelemetry {
             });
         }
         catch (ex) {
-            this.server.log(['IotcObjectDetectorDevice', 'error'], `Error while deleting device: ${this.deviceId}`);
+            this.server.log(['ObjectDetectorDevice', 'error'], `Error while deleting device: ${this.deviceId}`);
         }
     }
 
@@ -195,7 +197,7 @@ export class IotcObjectDetectorDevice implements IDeviceTelemetry {
             result.clientConnectionStatus = false;
             result.clientConnectionMessage = `An error occurred while accessing the device twin properties`;
 
-            this.server.log(['ModuleService', 'error'], result.clientConnectionMessage);
+            this.server.log(['ObjectDetectorDevice', 'error'], result.clientConnectionMessage);
         }
 
         return result;
@@ -213,11 +215,11 @@ export class IotcObjectDetectorDevice implements IDeviceTelemetry {
             await this.deviceClient.sendEvent(iotcMessage);
 
             if (this.debugTelemetry() === true) {
-                this.server.log(['IotcObjectDetectorDevice', 'info'], `sendEvent: ${JSON.stringify(data, null, 4)}`);
+                this.server.log(['ObjectDetectorDevice', 'info'], `sendEvent: ${JSON.stringify(data, null, 4)}`);
             }
         }
         catch (ex) {
-            this.server.log(['IotcObjectDetectorDevice', 'error'], `sendMeasurement: ${ex.message}`);
+            this.server.log(['ObjectDetectorDevice', 'error'], `sendMeasurement: ${ex.message}`);
         }
     }
 
@@ -230,7 +232,7 @@ export class IotcObjectDetectorDevice implements IDeviceTelemetry {
             await this.sendMeasurement(inferenceTelemetryData);
         }
         catch (ex) {
-            this.server.log(['IotcObjectDetectorDevice', 'error'], `sendInferenceData: ${ex.message}`);
+            this.server.log(['ObjectDetectorDevice', 'error'], `sendInferenceData: ${ex.message}`);
         }
     }
 
@@ -251,11 +253,11 @@ export class IotcObjectDetectorDevice implements IDeviceTelemetry {
             });
 
             if (this.debugTelemetry() === true) {
-                this.server.log(['IotcObjectDetectorDevice', 'info'], `Device properties updated: ${JSON.stringify(properties, null, 4)}`);
+                this.server.log(['ObjectDetectorDevice', 'info'], `Device properties updated: ${JSON.stringify(properties, null, 4)}`);
             }
         }
         catch (ex) {
-            this.server.log(['IotcObjectDetectorDevice', 'error'], `Error updating device properties: ${ex.message}`);
+            this.server.log(['ObjectDetectorDevice', 'error'], `Error updating device properties: ${ex.message}`);
         }
     }
 
@@ -264,7 +266,7 @@ export class IotcObjectDetectorDevice implements IDeviceTelemetry {
             return '';
         }
 
-        this.server.log(['IotcObjectDetectorDevice', 'info'], `uploadContent - data length: ${data.length}`);
+        this.server.log(['ObjectDetectorDevice', 'info'], `uploadContent - data length: ${data.length}`);
 
         return 'http://test/url';
     }
@@ -309,7 +311,7 @@ export class IotcObjectDetectorDevice implements IDeviceTelemetry {
             result.clientConnectionStatus = false;
             result.clientConnectionMessage = `Failed to instantiate client interface from configuraiton: ${ex.message}`;
 
-            this.server.log(['IotcObjectDetectorDevice', 'error'], `${result.clientConnectionMessage}`);
+            this.server.log(['ObjectDetectorDevice', 'error'], `${result.clientConnectionMessage}`);
         }
 
         if (result.clientConnectionStatus === false) {
@@ -319,7 +321,7 @@ export class IotcObjectDetectorDevice implements IDeviceTelemetry {
         try {
             await this.deviceClient.open();
 
-            this.server.log(['IotcObjectDetectorDevice', 'info'], `Client is connected`);
+            this.server.log(['ObjectDetectorDevice', 'info'], `Client is connected`);
 
             this.deviceTwin = await this.deviceClient.getTwin();
             this.deviceTwin.on('properties.desired', this.onHandleDeviceProperties);
@@ -329,7 +331,7 @@ export class IotcObjectDetectorDevice implements IDeviceTelemetry {
             this.deviceClient.onDeviceMethod(IotcObjectDetectorInterface.Command.StartImageProcessing, this.startImageProcessingDirectMethod);
             this.deviceClient.onDeviceMethod(IotcObjectDetectorInterface.Command.StopImageProcessing, this.stopImageProcessingDirectMethod);
 
-            this.server.log(['IotcObjectDetectorDevice', 'info'], `IoT Central successfully connected device: ${this.deviceId}`);
+            this.server.log(['ObjectDetectorDevice', 'info'], `IoT Central successfully connected device: ${this.deviceId}`);
 
             result.clientConnectionStatus = true;
         }
@@ -337,14 +339,14 @@ export class IotcObjectDetectorDevice implements IDeviceTelemetry {
             result.clientConnectionStatus = false;
             result.clientConnectionMessage = `IoT Central connection error: ${ex.message}`;
 
-            this.server.log(['IotcObjectDetectorDevice', 'error'], result.clientConnectionMessage);
+            this.server.log(['ObjectDetectorDevice', 'error'], result.clientConnectionMessage);
         }
 
         return result;
     }
 
     private async deviceReady(): Promise<void> {
-        this.server.log(['IotcObjectDetectorDevice', 'info'], `Module ready`);
+        this.server.log(['ObjectDetectorDevice', 'info'], `Device ready`);
 
         const deviceProperties = await this.getDeviceProperties();
 
@@ -363,16 +365,16 @@ export class IotcObjectDetectorDevice implements IDeviceTelemetry {
 
     @bind
     private onDeviceClientError(error: Error) {
-        this.server.log(['IotcObjectDetectorDevice', 'error'], `Device client connection error: ${error.message}`);
+        this.server.log(['ObjectDetectorDevice', 'error'], `Device client connection error: ${error.message}`);
         this.healthState = HealthState.Critical;
     }
 
     @bind
     private async onHandleDeviceProperties(desiredChangedSettings: any) {
         try {
-            this.server.log(['IotcObjectDetectorDevice', 'info'], `onHandleDeviceProperties`);
+            this.server.log(['ObjectDetectorDevice', 'info'], `onHandleDeviceProperties`);
             if (this.debugTelemetry() === true) {
-                this.server.log(['IotcObjectDetectorDevice', 'info'], `desiredChangedSettings:\n${JSON.stringify(desiredChangedSettings, null, 4)}`);
+                this.server.log(['ObjectDetectorDevice', 'info'], `desiredChangedSettings:\n${JSON.stringify(desiredChangedSettings, null, 4)}`);
             }
 
             const patchedProperties = {};
@@ -415,7 +417,7 @@ export class IotcObjectDetectorDevice implements IDeviceTelemetry {
                         break;
 
                     default:
-                        this.server.log(['IotcObjectDetectorDevice', 'error'], `Received desired property change for unknown setting '${setting}'`);
+                        this.server.log(['ObjectDetectorDevice', 'error'], `Received desired property change for unknown setting '${setting}'`);
                         break;
                 }
             }
@@ -425,17 +427,16 @@ export class IotcObjectDetectorDevice implements IDeviceTelemetry {
             }
         }
         catch (ex) {
-            this.server.log(['IotcObjectDetectorDevice', 'error'], `Exception while handling desired properties: ${ex.message}`);
+            this.server.log(['ObjectDetectorDevice', 'error'], `Exception while handling desired properties: ${ex.message}`);
         }
 
         this.deferredStart.resolve();
     }
 
     @bind
+    // @ts-ignore (commandRequest)
     private async startImageProcessingDirectMethod(commandRequest: DeviceMethodRequest, commandResponse: DeviceMethodResponse) {
-        const rtspVideoUrl = commandRequest?.payload?.[StartImageProcessingRequestParams.RtspUrl];
-
-        this.server.log(['IotcObjectDetectorDevice', 'info'], `startImageProcessingDirectMethod: rtspVideoUrl is ${rtspVideoUrl}`);
+        this.server.log(['ObjectDetectorDevice', 'info'], `Received device command: ${IotcObjectDetectorInterface.Command.StartImageProcessing}`);
 
         if (this.inferenceProcessor) {
             await this.inferenceProcessor.stopInferenceProcessor();
@@ -452,12 +453,16 @@ export class IotcObjectDetectorDevice implements IDeviceTelemetry {
             this.deviceSettings[IotcObjectDetectorSettings.ConfidenceThreshold],
             this.deviceSettings[IotcObjectDetectorSettings.InferenceTimeout]);
 
-        await this.inferenceProcessor.startInferenceProcessor(rtspVideoUrl);
+        await this.inferenceProcessor.startInferenceProcessor(this.rtspUrl);
 
         await commandResponse.send(200);
         await this.updateDeviceProperties({
             [IotcObjectDetectorInterface.Command.StartImageProcessing]: {
-                value: 'Received command to start image processing'
+                value: {
+                    [CommandResponseParams.StatusCode]: 202,
+                    [CommandResponseParams.Message]: `Received ${IotcObjectDetectorInterface.Command.StartImageProcessing} command for deviceId: ${this.deviceId}`,
+                    [CommandResponseParams.Data]: ''
+                }
             }
         });
     }
@@ -465,10 +470,22 @@ export class IotcObjectDetectorDevice implements IDeviceTelemetry {
     @bind
     // @ts-ignore (commandRequest)
     private async stopImageProcessingDirectMethod(commandRequest: DeviceMethodRequest, commandResponse: DeviceMethodResponse) {
+        this.server.log(['ObjectDetectorDevice', 'info'], `Received device command: ${IotcObjectDetectorInterface.Command.StopImageProcessing}`);
+
+        if (this.inferenceProcessor) {
+            await this.inferenceProcessor.stopInferenceProcessor();
+
+            this.inferenceProcessor = null;
+        }
+
         await commandResponse.send(200);
         await this.updateDeviceProperties({
             [IotcObjectDetectorInterface.Command.StopImageProcessing]: {
-                value: 'Received command to stop image processing'
+                value: {
+                    [CommandResponseParams.StatusCode]: 202,
+                    [CommandResponseParams.Message]: `Received ${IotcObjectDetectorInterface.Command.StopImageProcessing} command for deviceId: ${this.deviceId}`,
+                    [CommandResponseParams.Data]: ''
+                }
             }
         });
     }

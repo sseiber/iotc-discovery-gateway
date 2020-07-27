@@ -7,7 +7,7 @@
     },
     "contents": [
         {
-            "@id": "urn:IoTCentral:DiscoveryGatewayDcm:IotcDiscoveryGatewayModule:1",
+            "@id": "urn:IoTCentral:DiscoveryGatewayDcm:DiscoveryGatewayModule:1",
             "@type": [
                 "Relationship",
                 "SemanticType/EdgeModule"
@@ -15,11 +15,11 @@
             "displayName": {
                 "en": "Discovery Gateway Module"
             },
-            "name": "IotcDiscoveryGatewayModule",
+            "name": "DiscoveryGatewayModule",
             "maxMultiplicity": 1,
             "target": [
                 {
-                    "@id": "urn:IoTCentral:IotcDiscoveryGatewayModule:1",
+                    "@id": "urn:IoTCentral:DiscoveryGatewayModule:1",
                     "@type": "CapabilityModel",
                     "implements": [
                         {
@@ -29,7 +29,7 @@
                                 "en": "Device information"
                             },
                             "schema": {
-                                "@id": "urn:IoTCentral:IotcDiscoveryGatewayModule:DeviceInformation:1",
+                                "@id": "urn:IoTCentral:DiscoveryGatewayModule:DeviceInformation:1",
                                 "@type": "Interface",
                                 "displayName": {
                                     "en": "Device information"
@@ -134,7 +134,7 @@
                             },
                             "name": "DiscoveryGatewayInterface",
                             "schema": {
-                                "@id": "urn:IoTCentral:IotcDiscoveryGatewayModule:DiscoveryGatewayInterface:1",
+                                "@id": "urn:IoTCentral:DiscoveryGatewayModule:DiscoveryGatewayInterface:1",
                                 "@type": "Interface",
                                 "displayName": {
                                     "en": "Discovery Gateway Interface"

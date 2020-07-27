@@ -2,7 +2,7 @@ import { service, inject } from 'spryly';
 import { Server } from '@hapi/hapi';
 import { ConfigService } from './config';
 import { StorageService } from './storage';
-import { IotcObjectDetectorDevice } from './objectDetectorDevice';
+import { ObjectDetectorDevice } from './objectDetectorDevice';
 import { HealthState } from './health';
 import { Mqtt } from 'azure-iot-device-mqtt';
 import { SymmetricKeySecurityClient } from 'azure-iot-security-symmetric-key';
@@ -60,7 +60,7 @@ interface IProvisionResult {
     dpsHubConnectionString: string;
     clientConnectionStatus: boolean;
     clientConnectionMessage: string;
-    deviceInstance: IotcObjectDetectorDevice;
+    deviceInstance: ObjectDetectorDevice;
 }
 
 enum IotcDiscoveryGatewaySettings {
@@ -134,11 +134,11 @@ export const IotcDiscoveryGatewayInterface = {
 };
 
 const defaultDpsProvisioningHost: string = 'global.azure-devices-provisioning.net';
-const defaultLeafDeviceModelId: string = 'urn:IoTCentral:IotcObjectDetectorDevice:1';
+const defaultLeafDeviceModelId: string = 'urn:IoTCentral:ObjectDetectorDevice:1';
 const defaultHealthCheckRetries: number = 3;
 
-@service('iotcModule')
-export class IoTCentralModuleService {
+@service('module')
+export class ModuleService {
     @inject('$server')
     private server: Server;
 
@@ -164,14 +164,14 @@ export class IoTCentralModuleService {
         iotCentralDeviceProvisioningKey: '',
         iotCentralScopeId: ''
     };
-    private deviceMap = new Map<string, IotcObjectDetectorDevice>();
+    private deviceMap = new Map<string, ObjectDetectorDevice>();
     private dpsProvisioningHost: string = defaultDpsProvisioningHost;
     private leafDeviceModelId: string = defaultLeafDeviceModelId;
 
     private healthCheckRetries: number = defaultHealthCheckRetries;
 
     public async init(): Promise<void> {
-        this.server.log(['IoTCentralModuleService', 'info'], 'initialize');
+        this.server.log(['ModuleService', 'info'], 'initialize');
 
         this.server.method({ name: 'module.startModule', method: this.startModule });
 
@@ -203,7 +203,7 @@ export class IoTCentralModuleService {
         catch (ex) {
             result = false;
 
-            this.server.log(['IoTCentralModuleService', 'error'], `Exception during IoT Central device provsioning: ${ex.message}`);
+            this.server.log(['ModuleService', 'error'], `Exception during IoT Central device provsioning: ${ex.message}`);
         }
 
         this.healthState = result === true ? HealthState.Good : HealthState.Critical;
@@ -240,7 +240,7 @@ export class IoTCentralModuleService {
             }
         }
         catch (ex) {
-            this.server.log(['IoTCentralModuleService', 'error'], `Error in healthState (may indicate a critical issue): ${ex.message}`);
+            this.server.log(['ModuleService', 'error'], `Error in healthState (may indicate a critical issue): ${ex.message}`);
             this.healthState = HealthState.Critical;
         }
 
@@ -269,11 +269,11 @@ export class IoTCentralModuleService {
             await this.moduleClient.sendEvent(iotcMessage);
 
             if (this.debugTelemetry() === true) {
-                this.server.log(['IoTCentralModuleService', 'info'], `sendEvent: ${JSON.stringify(data, null, 4)}`);
+                this.server.log(['ModuleService', 'info'], `sendEvent: ${JSON.stringify(data, null, 4)}`);
             }
         }
         catch (ex) {
-            this.server.log(['IoTCentralModuleService', 'error'], `sendMeasurement: ${ex.message}`);
+            this.server.log(['ModuleService', 'error'], `sendMeasurement: ${ex.message}`);
         }
     }
 
@@ -294,16 +294,16 @@ export class IoTCentralModuleService {
             });
 
             if (this.debugTelemetry() === true) {
-                this.server.log(['IoTCentralModuleService', 'info'], `Module properties updated: ${JSON.stringify(properties, null, 4)}`);
+                this.server.log(['ModuleService', 'info'], `Module properties updated: ${JSON.stringify(properties, null, 4)}`);
             }
         }
         catch (ex) {
-            this.server.log(['IoTCentralModuleService', 'error'], `Error updating module properties: ${ex.message}`);
+            this.server.log(['ModuleService', 'error'], `Error updating module properties: ${ex.message}`);
         }
     }
 
     public async restartModule(timeout: number, reason: string): Promise<void> {
-        this.server.log(['IoTCentralModuleService', 'info'], `Module restart requested...`);
+        this.server.log(['ModuleService', 'info'], `Module restart requested...`);
 
         try {
             await this.sendMeasurement({
@@ -321,11 +321,11 @@ export class IoTCentralModuleService {
             }
         }
         catch (ex) {
-            this.server.log(['IoTCentralModuleService', 'error'], `${ex.message}`);
+            this.server.log(['ModuleService', 'error'], `${ex.message}`);
         }
 
         // let Docker restart our container
-        this.server.log(['IoTCentralModuleService', 'info'], `Shutting down main process - module container will restart`);
+        this.server.log(['ModuleService', 'info'], `Shutting down main process - module container will restart`);
         process.exit(1);
     }
 
@@ -349,7 +349,7 @@ export class IoTCentralModuleService {
             result = await this.storage.get('state', 'iotCentral.properties');
         }
         catch (ex) {
-            this.server.log(['IoTCentralModuleService', 'error'], `Error reading module properties: ${ex.message}`);
+            this.server.log(['ModuleService', 'error'], `Error reading module properties: ${ex.message}`);
         }
 
         return result;
@@ -378,12 +378,12 @@ export class IoTCentralModuleService {
         }
 
         try {
-            this.server.log(['IoTCentralModuleService', 'info'], `IOTEDGE_WORKLOADURI: ${this.config.get('IOTEDGE_WORKLOADURI')}`);
-            this.server.log(['IoTCentralModuleService', 'info'], `IOTEDGE_DEVICEID: ${this.config.get('IOTEDGE_DEVICEID')}`);
-            this.server.log(['IoTCentralModuleService', 'info'], `IOTEDGE_MODULEID: ${this.config.get('IOTEDGE_MODULEID')}`);
-            this.server.log(['IoTCentralModuleService', 'info'], `IOTEDGE_MODULEGENERATIONID: ${this.config.get('IOTEDGE_MODULEGENERATIONID')}`);
-            this.server.log(['IoTCentralModuleService', 'info'], `IOTEDGE_IOTHUBHOSTNAME: ${this.config.get('IOTEDGE_IOTHUBHOSTNAME')}`);
-            this.server.log(['IoTCentralModuleService', 'info'], `IOTEDGE_AUTHSCHEME: ${this.config.get('IOTEDGE_AUTHSCHEME')}`);
+            this.server.log(['ModuleService', 'info'], `IOTEDGE_WORKLOADURI: ${this.config.get('IOTEDGE_WORKLOADURI')}`);
+            this.server.log(['ModuleService', 'info'], `IOTEDGE_DEVICEID: ${this.config.get('IOTEDGE_DEVICEID')}`);
+            this.server.log(['ModuleService', 'info'], `IOTEDGE_MODULEID: ${this.config.get('IOTEDGE_MODULEID')}`);
+            this.server.log(['ModuleService', 'info'], `IOTEDGE_MODULEGENERATIONID: ${this.config.get('IOTEDGE_MODULEGENERATIONID')}`);
+            this.server.log(['ModuleService', 'info'], `IOTEDGE_IOTHUBHOSTNAME: ${this.config.get('IOTEDGE_IOTHUBHOSTNAME')}`);
+            this.server.log(['ModuleService', 'info'], `IOTEDGE_AUTHSCHEME: ${this.config.get('IOTEDGE_AUTHSCHEME')}`);
 
             // TODO:
             // We need to hang out here for a bit of time to avoid a race condition where the edgeHub module is not
@@ -394,7 +394,7 @@ export class IoTCentralModuleService {
             this.moduleClient = await ModuleClient.fromEnvironment(Mqtt);
         }
         catch (ex) {
-            this.server.log(['IoTCentralModuleService', 'error'], `Failed to instantiate client interface from configuraiton: ${ex.message}`);
+            this.server.log(['ModuleService', 'error'], `Failed to instantiate client interface from configuraiton: ${ex.message}`);
         }
 
         if (!this.moduleClient) {
@@ -404,7 +404,7 @@ export class IoTCentralModuleService {
         try {
             await this.moduleClient.open();
 
-            this.server.log(['IoTCentralModuleService', 'info'], `Client is connected`);
+            this.server.log(['ModuleService', 'info'], `Client is connected`);
 
             // TODO:
             // Should the module twin interface get connected *BEFORE* opening
@@ -419,10 +419,10 @@ export class IoTCentralModuleService {
             this.moduleClient.onMethod(IotcDiscoveryGatewayInterface.Command.ScanForDevices, this.scanForDevicesDirectMethod);
             this.moduleClient.onMethod(IotcDiscoveryGatewayInterface.Command.RestartModule, this.restartModuleDirectMethod);
 
-            this.server.log(['IoTCentralModuleService', 'info'], `IoT Central successfully connected module: ${this.config.get('IOTEDGE_MODULEID')}, instance id: ${this.config.get('IOTEDGE_DEVICEID')}`);
+            this.server.log(['ModuleService', 'info'], `IoT Central successfully connected module: ${this.config.get('IOTEDGE_MODULEID')}, instance id: ${this.config.get('IOTEDGE_DEVICEID')}`);
         }
         catch (ex) {
-            this.server.log(['IoTCentralModuleService', 'error'], `IoT Central connection error: ${ex.message}`);
+            this.server.log(['ModuleService', 'error'], `IoT Central connection error: ${ex.message}`);
 
             result = false;
         }
@@ -431,7 +431,7 @@ export class IoTCentralModuleService {
     }
 
     private async moduleReady(): Promise<void> {
-        this.server.log(['IoTCentralModuleService', 'info'], `Module ready`);
+        this.server.log(['ModuleService', 'info'], `Module ready`);
 
         const systemProperties = await this.getSystemProperties();
         const moduleProperties = await this.getEdgeDeviceProperties();
@@ -453,11 +453,11 @@ export class IoTCentralModuleService {
     }
 
     private async recreateExistingDevices() {
-        this.server.log(['IoTCentralModuleService', 'info'], 'recreateExistingDevices');
+        this.server.log(['ModuleService', 'info'], 'recreateExistingDevices');
 
         try {
             if (this.debugTelemetry() === true) {
-                this.server.log(['IoTCentralModuleService', 'info'], `Calling api: https://${this.iotCentralAppKeys.iotCentralAppHost}/api/preview/devices`);
+                this.server.log(['ModuleService', 'info'], `Calling api: https://${this.iotCentralAppKeys.iotCentralAppHost}/api/preview/devices`);
             }
 
             const deviceListResponse = await this.iotcApiRequest(
@@ -472,16 +472,16 @@ export class IoTCentralModuleService {
 
             const deviceList = deviceListResponse.payload?.value || [];
 
-            this.server.log(['IoTCentralModuleService', 'info'], `Found ${deviceList.length} devices`);
+            this.server.log(['ModuleService', 'info'], `Found ${deviceList.length} devices`);
             if (this.debugTelemetry() === true) {
-                this.server.log(['IoTCentralModuleService', 'info'], `${JSON.stringify(deviceList, null, 4)}`);
+                this.server.log(['ModuleService', 'info'], `${JSON.stringify(deviceList, null, 4)}`);
             }
 
             for (const device of deviceList) {
                 try {
-                    this.server.log(['IoTCentralModuleService', 'info'], `Getting properties for device: ${device.id}`);
+                    this.server.log(['ModuleService', 'info'], `Getting properties for device: ${device.id}`);
                     if (this.debugTelemetry() === true) {
-                        this.server.log(['IoTCentralModuleService', 'info'], `Calling api: https://${this.iotCentralAppKeys.iotCentralAppHost}/api/preview/devices/${device.id}/properties`);
+                        this.server.log(['ModuleService', 'info'], `Calling api: https://${this.iotCentralAppKeys.iotCentralAppHost}/api/preview/devices/${device.id}/properties`);
                     }
 
                     const devicePropertiesResponse = await this.iotcApiRequest(
@@ -497,21 +497,21 @@ export class IoTCentralModuleService {
                     if (devicePropertiesResponse?.payload?.IotcObjectDetectorInterface) {
                         const deviceInterfaceProperties = devicePropertiesResponse.payload.IotcObjectDetectorInterface;
 
-                        this.server.log(['IoTCentralModuleService', 'info'], `Recreating device: ${device.id}`);
+                        this.server.log(['ModuleService', 'info'], `Recreating device: ${device.id}`);
 
                         await this.createDevice(device.id, deviceInterfaceProperties.rpDeviceName, deviceInterfaceProperties.rpRtspUrl);
                     }
                     else {
-                        this.server.log(['IoTCentralModuleService', 'info'], `Found device: ${device.id} - but it is not an AMS camera device`);
+                        this.server.log(['ModuleService', 'info'], `Found device: ${device.id} - but it is not a Discovery Gateway device`);
                     }
                 }
                 catch (ex) {
-                    this.server.log(['IoTCentralModuleService', 'error'], `An error occurred while re-creating devices: ${ex.message}`);
+                    this.server.log(['ModuleService', 'error'], `An error occurred while re-creating devices: ${ex.message}`);
                 }
             }
         }
         catch (ex) {
-            this.server.log(['IoTCentralModuleService', 'error'], `Failed to get device list: ${ex.message}`);
+            this.server.log(['ModuleService', 'error'], `Failed to get device list: ${ex.message}`);
         }
 
         // If there were errors, we may be in a bad state (e.g. an ams inference device exists
@@ -521,16 +521,16 @@ export class IoTCentralModuleService {
 
     @bind
     private onModuleClientError(error: Error) {
-        this.server.log(['IoTCentralModuleService', 'error'], `Module client connection error: ${error.message}`);
+        this.server.log(['ModuleService', 'error'], `Module client connection error: ${error.message}`);
         this.healthState = HealthState.Critical;
     }
 
     @bind
     private async onHandleModuleProperties(desiredChangedSettings: any) {
         try {
-            this.server.log(['IoTCentralModuleService', 'info'], `onHandleModuleProperties`);
+            this.server.log(['ModuleService', 'info'], `onHandleModuleProperties`);
             if (this.debugTelemetry() === true) {
-                this.server.log(['IoTCentralModuleService', 'info'], `desiredChangedSettings:\n${JSON.stringify(desiredChangedSettings, null, 4)}`);
+                this.server.log(['ModuleService', 'info'], `desiredChangedSettings:\n${JSON.stringify(desiredChangedSettings, null, 4)}`);
             }
 
             const patchedProperties = {};
@@ -552,7 +552,7 @@ export class IoTCentralModuleService {
                         break;
 
                     default:
-                        this.server.log(['IoTCentralModuleService', 'error'], `Received desired property change for unknown setting '${setting}'`);
+                        this.server.log(['ModuleService', 'error'], `Received desired property change for unknown setting '${setting}'`);
                         break;
                 }
             }
@@ -562,7 +562,7 @@ export class IoTCentralModuleService {
             }
         }
         catch (ex) {
-            this.server.log(['IoTCentralModuleService', 'error'], `Exception while handling desired properties: ${ex.message}`);
+            this.server.log(['ModuleService', 'error'], `Exception while handling desired properties: ${ex.message}`);
         }
 
         this.deferredStart.resolve();
@@ -570,7 +570,7 @@ export class IoTCentralModuleService {
 
     private async scanForDevices(scanTime: number): Promise<string> {
         try {
-            this.server.log(['IoTCentralModuleService', 'info'], `Starting network device scan for ${scanTime} seconds...`);
+            this.server.log(['ModuleService', 'info'], `Starting network device scan for ${scanTime} seconds...`);
 
             await new Promise((resolve) => {
                 setTimeout(() => {
@@ -580,7 +580,7 @@ export class IoTCentralModuleService {
 
             const deviceCount = 2;
 
-            this.server.log(['IoTCentralModuleService', 'info'], `Finished network device scan - found ${deviceCount} devices`);
+            this.server.log(['ModuleService', 'info'], `Finished network device scan - found ${deviceCount} devices`);
 
             const scanResult = {
                 ['192.168.86.75']: {
@@ -600,12 +600,12 @@ export class IoTCentralModuleService {
             return commandResult;
         }
         catch (ex) {
-            this.server.log(['IoTCentralModuleService', 'error'], `Exception while handling desired properties: ${ex.message}`);
+            this.server.log(['ModuleService', 'error'], `Exception while handling desired properties: ${ex.message}`);
         }
     }
 
     private async createDevice(deviceId: string, deviceName: string, rtspUrl: string): Promise<IProvisionResult> {
-        this.server.log(['IoTCentralModuleService', 'info'], `createDevice - deviceId: ${deviceId}, deviceName: ${deviceName}, detectionType: ${rtspUrl}`);
+        this.server.log(['ModuleService', 'info'], `createDevice - deviceId: ${deviceId}, deviceName: ${deviceName}, rtspUrl: ${rtspUrl}`);
 
         let deviceProvisionResult: IProvisionResult = {
             dpsProvisionStatus: false,
@@ -621,7 +621,7 @@ export class IoTCentralModuleService {
                 deviceProvisionResult.dpsProvisionStatus = false;
                 deviceProvisionResult.dpsProvisionMessage = `Missing device configuration - skipping DPS provisioning`;
 
-                this.server.log(['IoTCentralModuleService', 'error'], deviceProvisionResult.dpsProvisionMessage);
+                this.server.log(['ModuleService', 'error'], deviceProvisionResult.dpsProvisionMessage);
 
                 return deviceProvisionResult;
             }
@@ -632,8 +632,8 @@ export class IoTCentralModuleService {
                 || !this.iotCentralAppKeys.iotCentralScopeId) {
 
                 deviceProvisionResult.dpsProvisionStatus = false;
-                deviceProvisionResult.dpsProvisionMessage = `Missing camera management settings (ScopeId)`;
-                this.server.log(['IoTCentralModuleService', 'error'], deviceProvisionResult.dpsProvisionMessage);
+                deviceProvisionResult.dpsProvisionMessage = `Missing device management settings (ScopeId)`;
+                this.server.log(['ModuleService', 'error'], deviceProvisionResult.dpsProvisionMessage);
 
                 return deviceProvisionResult;
             }
@@ -645,21 +645,21 @@ export class IoTCentralModuleService {
 
                 await this.sendMeasurement({ [IotcDiscoveryGatewayInterface.Event.CreateDevice]: deviceId });
 
-                this.server.log(['IoTCentralModuleService', 'info'], `Succesfully provisioned device with id: ${deviceId}`);
+                this.server.log(['ModuleService', 'info'], `Succesfully provisioned device with id: ${deviceId}`);
             }
         }
         catch (ex) {
             deviceProvisionResult.dpsProvisionStatus = false;
             deviceProvisionResult.dpsProvisionMessage = `Error while provisioning device: ${ex.message}`;
 
-            this.server.log(['IoTCentralModuleService', 'error'], deviceProvisionResult.dpsProvisionMessage);
+            this.server.log(['ModuleService', 'error'], deviceProvisionResult.dpsProvisionMessage);
         }
 
         return deviceProvisionResult;
     }
 
     private async createAndProvisionDevice(deviceId: string, deviceName: string, rtspUrl: string): Promise<IProvisionResult> {
-        this.server.log(['IoTCentralModuleService', 'info'], `Provisioning device - id: ${deviceId}`);
+        this.server.log(['ModuleService', 'info'], `Provisioning device - id: ${deviceId}`);
 
         const deviceProvisionResult: IProvisionResult = {
             dpsProvisionStatus: false,
@@ -672,7 +672,7 @@ export class IoTCentralModuleService {
 
         try {
             const deviceKey = this.computeDeviceKey(deviceId, this.iotCentralAppKeys.iotCentralDeviceProvisioningKey);
-            this.server.log(['IoTCentralModuleService', 'info'], `Computed deviceKey: ${deviceKey}`);
+            this.server.log(['ModuleService', 'info'], `Computed deviceKey: ${deviceKey}`);
 
             const provisioningSecurityClient = new SymmetricKeySecurityClient(deviceId, deviceKey);
             const provisioningClient = ProvisioningDeviceClient.create(
@@ -681,7 +681,7 @@ export class IoTCentralModuleService {
                 new ProvisioningTransport(),
                 provisioningSecurityClient);
 
-            this.server.log(['IoTCentralModuleService', 'info'], `Created provisioningClient succeeded`);
+            this.server.log(['ModuleService', 'info'], `Created provisioningClient succeeded`);
 
             const provisioningPayload = {
                 iotcModelId: this.leafDeviceModelId,
@@ -692,7 +692,7 @@ export class IoTCentralModuleService {
             };
 
             provisioningClient.setProvisioningPayload(provisioningPayload);
-            this.server.log(['IoTCentralModuleService', 'info'], `setProvisioningPayload succeeded ${JSON.stringify(provisioningPayload, null, 4)}`);
+            this.server.log(['ModuleService', 'info'], `setProvisioningPayload succeeded ${JSON.stringify(provisioningPayload, null, 4)}`);
 
             const dpsConnectionString = await new Promise<string>((resolve, reject) => {
                 provisioningClient.register((dpsError, dpsResult) => {
@@ -700,22 +700,22 @@ export class IoTCentralModuleService {
                         return reject(dpsError);
                     }
 
-                    this.server.log(['IoTCentralModuleService', 'info'], `DPS registration succeeded - hub: ${dpsResult.assignedHub}`);
+                    this.server.log(['ModuleService', 'info'], `DPS registration succeeded - hub: ${dpsResult.assignedHub}`);
 
                     return resolve(`HostName=${dpsResult.assignedHub};DeviceId=${dpsResult.deviceId};SharedAccessKey=${deviceKey}`);
                 });
             });
-            this.server.log(['IoTCentralModuleService', 'info'], `register device client succeeded`);
+            this.server.log(['ModuleService', 'info'], `register device client succeeded`);
 
             deviceProvisionResult.dpsProvisionStatus = true;
             deviceProvisionResult.dpsProvisionMessage = `IoT Central successfully provisioned device: ${deviceId}`;
             deviceProvisionResult.dpsHubConnectionString = dpsConnectionString;
 
-            deviceProvisionResult.deviceInstance = new IotcObjectDetectorDevice(this.server, this.config, deviceId, deviceName, rtspUrl);
+            deviceProvisionResult.deviceInstance = new ObjectDetectorDevice(this.server, this.config, deviceId, deviceName, rtspUrl);
 
             const { clientConnectionStatus, clientConnectionMessage } = await deviceProvisionResult.deviceInstance.connectDeviceClient(deviceProvisionResult.dpsHubConnectionString);
 
-            this.server.log(['IoTCentralModuleService', 'info'], `clientConnectionStatus: ${clientConnectionStatus}, clientConnectionMessage: ${clientConnectionMessage}`);
+            this.server.log(['ModuleService', 'info'], `clientConnectionStatus: ${clientConnectionStatus}, clientConnectionMessage: ${clientConnectionMessage}`);
 
             deviceProvisionResult.clientConnectionStatus = clientConnectionStatus;
             deviceProvisionResult.clientConnectionMessage = clientConnectionMessage;
@@ -724,14 +724,14 @@ export class IoTCentralModuleService {
             deviceProvisionResult.dpsProvisionStatus = false;
             deviceProvisionResult.dpsProvisionMessage = `Error while provisioning device: ${ex.message}`;
 
-            this.server.log(['IoTCentralModuleService', 'error'], deviceProvisionResult.dpsProvisionMessage);
+            this.server.log(['ModuleService', 'error'], deviceProvisionResult.dpsProvisionMessage);
         }
 
         return deviceProvisionResult;
     }
 
     private async deprovisionDevice(deviceId: string): Promise<boolean> {
-        this.server.log(['IoTCentralModuleService', 'info'], `Deprovisioning device - id: ${deviceId}`);
+        this.server.log(['ModuleService', 'info'], `Deprovisioning device - id: ${deviceId}`);
 
         let result = false;
 
@@ -742,7 +742,7 @@ export class IoTCentralModuleService {
                 this.deviceMap.delete(deviceId);
             }
 
-            this.server.log(['IoTCentralModuleService', 'info'], `Deleting IoT Central device instance: ${deviceId}`);
+            this.server.log(['ModuleService', 'info'], `Deleting IoT Central device instance: ${deviceId}`);
             try {
                 await this.iotcApiRequest(
                     `https://${this.iotCentralAppKeys.iotCentralAppHost}/api/preview/devices/${deviceId}`,
@@ -756,16 +756,16 @@ export class IoTCentralModuleService {
 
                 await this.sendMeasurement({ [IotcDiscoveryGatewayInterface.Event.DeleteDevice]: deviceId });
 
-                this.server.log(['IoTCentralModuleService', 'info'], `Succesfully de-provisioned camera device with id: ${deviceId}`);
+                this.server.log(['ModuleService', 'info'], `Succesfully de-provisioned device with id: ${deviceId}`);
 
                 result = true;
             }
             catch (ex) {
-                this.server.log(['IoTCentralModuleService', 'error'], `Requeset to delete the IoT Central device failed: ${ex.message}`);
+                this.server.log(['ModuleService', 'error'], `Requeset to delete the IoT Central device failed: ${ex.message}`);
             }
         }
         catch (ex) {
-            this.server.log(['IoTCentralModuleService', 'error'], `Failed de-provision device: ${ex.message}`);
+            this.server.log(['ModuleService', 'error'], `Failed de-provision device: ${ex.message}`);
         }
 
         return result;
@@ -777,7 +777,7 @@ export class IoTCentralModuleService {
 
     @bind
     private async addDeviceDirectMethod(commandRequest: DeviceMethodRequest, commandResponse: DeviceMethodResponse) {
-        this.server.log(['IoTCentralModuleService', 'info'], `${IotcDiscoveryGatewayInterface.Command.AddDevice} command received`);
+        this.server.log(['ModuleService', 'info'], `${IotcDiscoveryGatewayInterface.Command.AddDevice} command received`);
 
         try {
             const deviceId = commandRequest?.payload?.[AddDeviceRequestParams.DeviceId];
@@ -813,13 +813,13 @@ export class IoTCentralModuleService {
             });
         }
         catch (ex) {
-            this.server.log(['IoTCentralModuleService', 'error'], `Error creating device: ${ex.message}`);
+            this.server.log(['ModuleService', 'error'], `Error creating device: ${ex.message}`);
         }
     }
 
     @bind
     private async deleteDeviceDirectMethod(commandRequest: DeviceMethodRequest, commandResponse: DeviceMethodResponse) {
-        this.server.log(['IoTCentralModuleService', 'info'], `${IotcDiscoveryGatewayInterface.Command.DeleteDevice} command received`);
+        this.server.log(['ModuleService', 'info'], `${IotcDiscoveryGatewayInterface.Command.DeleteDevice} command received`);
 
         try {
             const deviceId = commandRequest?.payload?.[DeleteDeviceRequestParams.DeviceId];
@@ -855,13 +855,13 @@ export class IoTCentralModuleService {
             });
         }
         catch (ex) {
-            this.server.log(['IoTCentralModuleService', 'error'], `Error deleting device: ${ex.message}`);
+            this.server.log(['ModuleService', 'error'], `Error deleting device: ${ex.message}`);
         }
     }
 
     @bind
     private async scanForDevicesDirectMethod(commandRequest: DeviceMethodRequest, commandResponse: DeviceMethodResponse) {
-        this.server.log(['IoTCentralModuleService', 'info'], `${IotcDiscoveryGatewayInterface.Command.ScanForDevices} command received`);
+        this.server.log(['ModuleService', 'info'], `${IotcDiscoveryGatewayInterface.Command.ScanForDevices} command received`);
 
         try {
             const result = await this.scanForDevices(commandRequest?.payload?.[ScanForDevicesRequestParams.ScanTime] || 5);
@@ -881,13 +881,13 @@ export class IoTCentralModuleService {
             });
         }
         catch (ex) {
-            this.server.log(['IoTCentralModuleService', 'error'], `Error while scanning for devices: ${ex.message}`);
+            this.server.log(['ModuleService', 'error'], `Error while scanning for devices: ${ex.message}`);
         }
     }
 
     @bind
     private async restartModuleDirectMethod(commandRequest: DeviceMethodRequest, commandResponse: DeviceMethodResponse) {
-        this.server.log(['IoTCentralModuleService', 'info'], `${IotcDiscoveryGatewayInterface.Command.RestartModule} command received`);
+        this.server.log(['ModuleService', 'info'], `${IotcDiscoveryGatewayInterface.Command.RestartModule} command received`);
 
         try {
             // sending response before processing, since this is a restart request
@@ -905,7 +905,7 @@ export class IoTCentralModuleService {
             await this.restartModule(commandRequest?.payload?.[RestartModuleRequestParams.Timeout] || 0, 'RestartModule command received');
         }
         catch (ex) {
-            this.server.log(['IoTCentralModuleService', 'error'], `Error sending response for ${IotcDiscoveryGatewayInterface.Command.RestartModule} command: ${ex.message}`);
+            this.server.log(['ModuleService', 'error'], `Error sending response for ${IotcDiscoveryGatewayInterface.Command.RestartModule} command: ${ex.message}`);
         }
     }
 

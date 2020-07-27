@@ -1,5 +1,5 @@
 {
-    "@id": "urn:IoTCentral:IotcObjectDetectorDevice:1",
+    "@id": "urn:IoTCentral:ObjectDetectorDevice:1",
     "@type": "CapabilityModel",
     "implements": [
         {
@@ -9,7 +9,7 @@
                 "en": "Device information"
             },
             "schema": {
-                "@id": "urn:IoTCentral:IotcObjectDetectorDevice:DeviceInformation:1",
+                "@id": "urn:IoTCentral:ObjectDetectorDevice:DeviceInformation:1",
                 "@type": "Interface",
                 "displayName": {
                     "en": "Device information"
@@ -114,7 +114,7 @@
             },
             "name": "IotcObjectDetectorInterface",
             "schema": {
-                "@id": "urn:IoTCentral:IotcObjectDetectorDevice:IotcObjectDetectorInterface:1",
+                "@id": "urn:IoTCentral:ObjectDetectorDevice:IotcObjectDetectorInterface:1",
                 "@type": "Interface",
                 "displayName": {
                     "en": "Object Detector Device Interface"
@@ -462,12 +462,12 @@
                     {
                         "@type": "Command",
                         "commandType": "asynchronous",
-                        "request": {
+                        "response": {
                             "@type": "SchemaField",
                             "displayName": {
-                                "en": "Start Image Processing Request"
+                                "en": "Command Response"
                             },
-                            "name": "StartImageProcessingRequest",
+                            "name": "CommandResponse",
                             "schema": {
                                 "@type": "Object",
                                 "displayName": {
@@ -477,21 +477,29 @@
                                     {
                                         "@type": "SchemaField",
                                         "displayName": {
-                                            "en": "Rtsp Url"
+                                            "en": "Status Code"
                                         },
-                                        "name": "StartImageProcessingRequestParams_RtspUrl",
+                                        "name": "CommandResponseParams_StatusCode",
+                                        "schema": "long"
+                                    },
+                                    {
+                                        "@type": "SchemaField",
+                                        "displayName": {
+                                            "en": "Message"
+                                        },
+                                        "name": "CommandResponseParams_Message",
+                                        "schema": "string"
+                                    },
+                                    {
+                                        "@type": "SchemaField",
+                                        "displayName": {
+                                            "en": "Data"
+                                        },
+                                        "name": "CommandResponseParams_Data",
                                         "schema": "string"
                                     }
                                 ]
                             }
-                        },
-                        "response": {
-                            "@type": "SchemaField",
-                            "displayName": {
-                                "en": "StartImageProcessingResponse"
-                            },
-                            "name": "StartImageProcessingResponse",
-                            "schema": "string"
                         },
                         "displayName": {
                             "en": "Start Image Processing"
@@ -504,10 +512,41 @@
                         "response": {
                             "@type": "SchemaField",
                             "displayName": {
-                                "en": "StopImageProcessingResponse"
+                                "en": "Command Response"
                             },
-                            "name": "StopImageProcessingResponse",
-                            "schema": "string"
+                            "name": "CommandResponse",
+                            "schema": {
+                                "@type": "Object",
+                                "displayName": {
+                                    "en": "Object"
+                                },
+                                "fields": [
+                                    {
+                                        "@type": "SchemaField",
+                                        "displayName": {
+                                            "en": "Status Code"
+                                        },
+                                        "name": "CommandResponseParams_StatusCode",
+                                        "schema": "long"
+                                    },
+                                    {
+                                        "@type": "SchemaField",
+                                        "displayName": {
+                                            "en": "Message"
+                                        },
+                                        "name": "CommandResponseParams_Message",
+                                        "schema": "string"
+                                    },
+                                    {
+                                        "@type": "SchemaField",
+                                        "displayName": {
+                                            "en": "Data"
+                                        },
+                                        "name": "CommandResponseParams_Data",
+                                        "schema": "string"
+                                    }
+                                ]
+                            }
                         },
                         "displayName": {
                             "en": "Stop Image Processing"
