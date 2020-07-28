@@ -1,6 +1,7 @@
 FROM amd64/node:13-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    net-tools \
     curl \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*

@@ -24,6 +24,8 @@ import {
     freemem as osFreeMem,
     loadavg as osLoadAvg
 } from 'os';
+import { promisify } from 'util';
+import { exec as processExec } from 'child_process';
 import * as crypto from 'crypto';
 import * as Wreck from '@hapi/wreck';
 import { bind, defer, emptyObj, forget, sleep } from '../utils';
@@ -456,11 +458,7 @@ export class ModuleService {
         this.server.log(['ModuleService', 'info'], 'recreateExistingDevices');
 
         try {
-            if (this.debugTelemetry() === true) {
-                this.server.log(['ModuleService', 'info'], `Calling api: https://${this.iotCentralAppKeys.iotCentralAppHost}/api/preview/devices`);
-            }
-
-            const deviceListResponse = await this.iotcApiRequest(
+            const deviceListResponse = await this.makeRequest(
                 `https://${this.iotCentralAppKeys.iotCentralAppHost}/api/preview/devices`,
                 'get',
                 {
@@ -480,11 +478,8 @@ export class ModuleService {
             for (const device of deviceList) {
                 try {
                     this.server.log(['ModuleService', 'info'], `Getting properties for device: ${device.id}`);
-                    if (this.debugTelemetry() === true) {
-                        this.server.log(['ModuleService', 'info'], `Calling api: https://${this.iotCentralAppKeys.iotCentralAppHost}/api/preview/devices/${device.id}/properties`);
-                    }
 
-                    const devicePropertiesResponse = await this.iotcApiRequest(
+                    const devicePropertiesResponse = await this.makeRequest(
                         `https://${this.iotCentralAppKeys.iotCentralAppHost}/api/preview/devices/${device.id}/properties`,
                         'get',
                         {
@@ -569,39 +564,62 @@ export class ModuleService {
     }
 
     private async scanForDevices(scanTime: number): Promise<string> {
+        let commandResult = '';
+
         try {
+            const hostDefaultRoute = await this.getHostDefaultRoute();
+            const scanMilliseconds = scanTime < 0 || scanTime > 60 ? 5000 : scanTime * 1000;
+
             this.server.log(['ModuleService', 'info'], `Starting network device scan for ${scanTime} seconds...`);
 
-            await new Promise((resolve) => {
-                setTimeout(() => {
-                    return resolve();
-                }, scanTime);
-            });
+            const discoveryResponse = await this.makeRequest(
+                `http://${hostDefaultRoute}:5000/api/discovery/discover/${scanMilliseconds}`,
+                'post',
+                {
+                    json: true
+                });
 
-            const deviceCount = 2;
+            const onvifDiscoveryResult = discoveryResponse?.payload || [];
+            if (Array.isArray(onvifDiscoveryResult)) {
+                this.server.log(['ModuleService', 'info'], `Finished network device scan - found ${onvifDiscoveryResult.length} devices`);
 
-            this.server.log(['ModuleService', 'info'], `Finished network device scan - found ${deviceCount} devices`);
-
-            const scanResult = {
-                ['192.168.86.75']: {
-                    name: 'axis1367',
-                    profile: 'stream1',
-                    resolution: '1920x1080'
-                },
-                ['192.168.86.82']: {
-                    name: 'hikvision',
-                    profile: 'channel2',
-                    resolution: '1280x720'
+                if (this.debugTelemetry() === true) {
+                    this.server.log(['ModuleService', 'info'], JSON.stringify(onvifDiscoveryResult, null, 4));
                 }
-            };
 
-            const commandResult = JSON.stringify(scanResult);
+                const discoveryResult = onvifDiscoveryResult.map((value) => {
+                    return {
+                        profile: value?.profile.join(',') || '',
+                        location: '',
+                        model: value?.hardware?.[0] || 'Unknown',
+                        name: value?.name?.[0] || 'Unknown',
+                        scopeUris: [
+                            ...value?.scopeUris
+                        ],
+                        xaddrs: [
+                            ...value?.xaddrs
+                        ],
+                        uuid: value?.uuid || '',
+                        ipAddress: value?.remoteAddress || ''
+                    };
+                });
+
+                try {
+                    commandResult = JSON.stringify(discoveryResult);
+                }
+                catch (ex) {
+                    this.server.log(['ModuleService', 'error'], `Exception while converting the discovery scan result: ${ex.message}`);
+                    commandResult = '';
+                }
+            }
 
             return commandResult;
         }
         catch (ex) {
             this.server.log(['ModuleService', 'error'], `Exception while handling desired properties: ${ex.message}`);
         }
+
+        return commandResult;
     }
 
     private async createDevice(deviceId: string, deviceName: string, rtspUrl: string): Promise<IProvisionResult> {
@@ -744,7 +762,7 @@ export class ModuleService {
 
             this.server.log(['ModuleService', 'info'], `Deleting IoT Central device instance: ${deviceId}`);
             try {
-                await this.iotcApiRequest(
+                await this.makeRequest(
                     `https://${this.iotCentralAppKeys.iotCentralAppHost}/api/preview/devices/${deviceId}`,
                     'delete',
                     {
@@ -788,11 +806,9 @@ export class ModuleService {
                 await commandResponse.send(202);
                 await this.updateModuleProperties({
                     [IotcDiscoveryGatewayInterface.Command.AddDevice]: {
-                        value: {
-                            [CommandResponseParams.StatusCode]: 202,
-                            [CommandResponseParams.Message]: `The ${IotcDiscoveryGatewayInterface.Command.AddDevice} command is missing required parameters, deviceId, deviceName, rtspUrl`,
-                            [CommandResponseParams.Data]: ''
-                        }
+                        [CommandResponseParams.StatusCode]: 202,
+                        [CommandResponseParams.Message]: `The ${IotcDiscoveryGatewayInterface.Command.AddDevice} command is missing required parameters, deviceId, deviceName, rtspUrl`,
+                        [CommandResponseParams.Data]: ''
                     }
                 });
 
@@ -804,11 +820,9 @@ export class ModuleService {
             await commandResponse.send(202);
             await this.updateModuleProperties({
                 [IotcDiscoveryGatewayInterface.Command.AddDevice]: {
-                    value: {
-                        [CommandResponseParams.StatusCode]: 202,
-                        [CommandResponseParams.Message]: provisionResult.clientConnectionMessage,
-                        [CommandResponseParams.Data]: ''
-                    }
+                    [CommandResponseParams.StatusCode]: 202,
+                    [CommandResponseParams.Message]: provisionResult.clientConnectionMessage,
+                    [CommandResponseParams.Data]: ''
                 }
             });
         }
@@ -827,11 +841,9 @@ export class ModuleService {
                 await commandResponse.send(202);
                 await this.updateModuleProperties({
                     [IotcDiscoveryGatewayInterface.Command.DeleteDevice]: {
-                        value: {
-                            [CommandResponseParams.StatusCode]: 202,
-                            [CommandResponseParams.Message]: `The ${IotcDiscoveryGatewayInterface.Command.DeleteDevice} command requires a Device Id parameter`,
-                            [CommandResponseParams.Data]: ''
-                        }
+                        [CommandResponseParams.StatusCode]: 202,
+                        [CommandResponseParams.Message]: `The ${IotcDiscoveryGatewayInterface.Command.DeleteDevice} command requires a Device Id parameter`,
+                        [CommandResponseParams.Data]: ''
                     }
                 });
 
@@ -843,13 +855,11 @@ export class ModuleService {
             await commandResponse.send(202);
             await this.updateModuleProperties({
                 [IotcDiscoveryGatewayInterface.Command.DeleteDevice]: {
-                    value: {
-                        [CommandResponseParams.StatusCode]: 202,
-                        [CommandResponseParams.Message]: deleteResult
-                            ? `The ${IotcDiscoveryGatewayInterface.Command.DeleteDevice} command succeeded`
-                            : `An error occurred while executing the ${IotcDiscoveryGatewayInterface.Command.DeleteDevice} command`,
-                        [CommandResponseParams.Data]: ''
-                    }
+                    [CommandResponseParams.StatusCode]: 202,
+                    [CommandResponseParams.Message]: deleteResult
+                        ? `The ${IotcDiscoveryGatewayInterface.Command.DeleteDevice} command succeeded`
+                        : `An error occurred while executing the ${IotcDiscoveryGatewayInterface.Command.DeleteDevice} command`,
+                    [CommandResponseParams.Data]: ''
 
                 }
             });
@@ -869,14 +879,11 @@ export class ModuleService {
             await commandResponse.send(202);
             await this.updateModuleProperties({
                 [IotcDiscoveryGatewayInterface.Command.ScanForDevices]: {
-                    value: {
-                        [CommandResponseParams.StatusCode]: 202,
-                        [CommandResponseParams.Message]: result
-                            ? `The ${IotcDiscoveryGatewayInterface.Command.ScanForDevices} command succeeded`
-                            : `An error occurred while executing the ${IotcDiscoveryGatewayInterface.Command.ScanForDevices} command`,
-                        [CommandResponseParams.Data]: ''
-                    }
-
+                    [CommandResponseParams.StatusCode]: 202,
+                    [CommandResponseParams.Message]: result
+                        ? `The ${IotcDiscoveryGatewayInterface.Command.ScanForDevices} command succeeded`
+                        : `An error occurred while executing the ${IotcDiscoveryGatewayInterface.Command.ScanForDevices} command`,
+                    [CommandResponseParams.Data]: result
                 }
             });
         }
@@ -894,11 +901,9 @@ export class ModuleService {
             await commandResponse.send(200);
             await this.updateModuleProperties({
                 [IotcDiscoveryGatewayInterface.Command.RestartModule]: {
-                    value: {
-                        [CommandResponseParams.StatusCode]: 202,
-                        [CommandResponseParams.Message]: 'Received command to restart the module',
-                        [CommandResponseParams.Data]: ''
-                    }
+                    [CommandResponseParams.StatusCode]: 202,
+                    [CommandResponseParams.Message]: 'Received command to restart the module',
+                    [CommandResponseParams.Data]: ''
                 }
             });
 
@@ -909,7 +914,28 @@ export class ModuleService {
         }
     }
 
-    private async iotcApiRequest(uri, method, options): Promise<any> {
+    private async getHostDefaultRoute(): Promise<string> {
+        let defaultRoute = '';
+
+        try {
+            const { stdout } = await promisify(processExec)(`route | awk '/default/ {print $2}'`, { encoding: 'utf8' });
+
+            defaultRoute = (stdout || '127.0.0.1').trim();
+
+            this.server.log(['ModuleService', 'info'], `Determined host default route: ${stdout}`);
+        }
+        catch (ex) {
+            this.server.log(['ModuleService', 'info'], `getHostDefaultRoute stderr: ${ex.message}`);
+        }
+
+        return defaultRoute;
+    }
+
+    private async makeRequest(uri, method, options): Promise<any> {
+        if (this.debugTelemetry() === true) {
+            this.server.log(['ModuleService', 'info'], `Calling api: ${method} - ${uri}`);
+        }
+
         try {
             const iotcApiResponse = await Wreck[method](uri, options);
 
@@ -925,7 +951,7 @@ export class ModuleService {
             return iotcApiResponse;
         }
         catch (ex) {
-            this.server.log(['ModuleService', 'error'], `iotcApiRequest: ${ex.message}`);
+            this.server.log(['ModuleService', 'error'], `makeRequest: ${ex.message}`);
             throw ex;
         }
     }

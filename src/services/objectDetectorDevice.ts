@@ -515,11 +515,9 @@ export class ObjectDetectorDevice implements IDeviceTelemetry {
         await commandResponse.send(200);
         await this.updateDeviceProperties({
             [IotcObjectDetectorInterface.Command.StopImageProcessing]: {
-                value: {
-                    [CommandResponseParams.StatusCode]: 202,
-                    [CommandResponseParams.Message]: `Received ${IotcObjectDetectorInterface.Command.StopImageProcessing} command for deviceId: ${this.deviceId}`,
-                    [CommandResponseParams.Data]: ''
-                }
+                [CommandResponseParams.StatusCode]: 202,
+                [CommandResponseParams.Message]: `Received ${IotcObjectDetectorInterface.Command.StopImageProcessing} command for deviceId: ${this.deviceId}`,
+                [CommandResponseParams.Data]: ''
             }
         });
     }
@@ -533,11 +531,9 @@ export class ObjectDetectorDevice implements IDeviceTelemetry {
             await commandResponse.send(200);
             await this.updateDeviceProperties({
                 [IotcObjectDetectorInterface.Command.CaptureImage]: {
-                    value: {
-                        [CommandResponseParams.StatusCode]: 202,
-                        [CommandResponseParams.Message]: `Unable to capture image. Image processing is not active`,
-                        [CommandResponseParams.Data]: ''
-                    }
+                    [CommandResponseParams.StatusCode]: 202,
+                    [CommandResponseParams.Message]: `Unable to capture image. Image processing is not active`,
+                    [CommandResponseParams.Data]: ''
                 }
             });
         }
@@ -547,11 +543,9 @@ export class ObjectDetectorDevice implements IDeviceTelemetry {
         await commandResponse.send(200);
         await this.updateDeviceProperties({
             [IotcObjectDetectorInterface.Command.CaptureImage]: {
-                value: {
-                    [CommandResponseParams.StatusCode]: 202,
-                    [CommandResponseParams.Message]: `The command ${IotcObjectDetectorInterface.Command.CaptureImage} for deviceId: ${this.deviceId} ${imageUrl ? 'completed successfully' : 'failed'}`,
-                    [CommandResponseParams.Data]: ''
-                }
+                [CommandResponseParams.StatusCode]: 202,
+                [CommandResponseParams.Message]: `The command ${IotcObjectDetectorInterface.Command.CaptureImage} for deviceId: ${this.deviceId} ${imageUrl ? 'completed successfully' : 'failed'}`,
+                [CommandResponseParams.Data]: ''
             }
         });
     }
