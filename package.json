@@ -1,6 +1,6 @@
 {
     "name": "iotc-discovery-gateway",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "description": "Azure IoT Central sample demonstrating Edge gateway device discovery",
     "main": "index.js",
     "scripts": {
@@ -30,7 +30,6 @@
         "azure-iot-provisioning-device-mqtt": "^1.7.4",
         "azure-iot-security-symmetric-key": "^1.7.4",
         "fs-extra": "^9.0.1",
-        "hapi-pino": "^8.2.0",
         "lodash.get": "^4.4.2",
         "lodash.set": "^4.3.2",
         "moment": "^2.27.0",
