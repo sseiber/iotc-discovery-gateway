@@ -16,10 +16,8 @@ import {
     DeviceMethodRequest,
     DeviceMethodResponse
 } from 'azure-iot-device';
-import { join as pathJoin } from 'path';
 import * as moment from 'moment';
 import { bind, defer, emptyObj } from '../utils';
-import { Readable } from 'stream';
 
 export interface IClientConnectResult {
     clientConnectionStatus: boolean;
@@ -72,7 +70,6 @@ enum CommandResponseParams {
 export const IotcObjectDetectorInterface = {
     Telemetry: {
         SystemHeartbeat: 'tlSystemHeartbeat',
-        FreeMemory: 'tlFreeMemory',
         InferenceCount: 'tlInferenceCount',
         Inference: 'tlInference'
     },
@@ -121,8 +118,7 @@ export class ObjectDetectorDevice implements IDeviceTelemetry {
     private deviceId: string;
     private deviceName: string;
     private rtspUrl: string;
-    private blobStoreRoot: string;
-
+    private sampleBlobImageUrl: string;
     private deviceClient: IoTDeviceClient = null;
     private deviceTwin: Twin = null;
     private deferredStart = defer();
@@ -143,8 +139,7 @@ export class ObjectDetectorDevice implements IDeviceTelemetry {
         this.deviceId = deviceId;
         this.deviceName = deviceName;
         this.rtspUrl = rtspUrl;
-
-        this.blobStoreRoot = this.config.get('blobStoreRoot');
+        this.sampleBlobImageUrl = this.config.get('sampleBlobImageUrl');
     }
 
     public async init(): Promise<void> {
@@ -280,16 +275,17 @@ export class ObjectDetectorDevice implements IDeviceTelemetry {
 
             this.server.log(['ObjectDetectorDevice', 'info'], `uploadContent - data length: ${data.length}, blobName: ${blobName}`);
 
-            const readableStream = new Readable({
-                read() {
-                    this.push(data);
-                    this.push(null);
-                }
-            });
+            // const readableStream = new Readable({
+            //     read() {
+            //         this.push(data);
+            //         this.push(null);
+            //     }
+            // });
 
-            await this.deviceClient.uploadToBlob(blobName, readableStream, data.length);
+            // await this.deviceClient.uploadToBlob(blobName, readableStream, data.length);
 
-            imageUrl = pathJoin(this.blobStoreRoot, this.deviceId, blobName);
+            // imageUrl = pathJoin(this.blobStoreRoot, this.deviceId, blobName);
+            imageUrl = this.sampleBlobImageUrl;
 
             await this.sendMeasurement({
                 [IotcObjectDetectorInterface.Event.UploadImage]: imageUrl
@@ -494,9 +490,11 @@ export class ObjectDetectorDevice implements IDeviceTelemetry {
         await commandResponse.send(200);
         await this.updateDeviceProperties({
             [IotcObjectDetectorInterface.Command.StartImageProcessing]: {
-                [CommandResponseParams.StatusCode]: 202,
-                [CommandResponseParams.Message]: `Received ${IotcObjectDetectorInterface.Command.StartImageProcessing} command for deviceId: ${this.deviceId}`,
-                [CommandResponseParams.Data]: ''
+                value: {
+                    [CommandResponseParams.StatusCode]: 202,
+                    [CommandResponseParams.Message]: `Received ${IotcObjectDetectorInterface.Command.StartImageProcessing} command for deviceId: ${this.deviceId}`,
+                    [CommandResponseParams.Data]: ''
+                }
             }
         });
     }
@@ -515,9 +513,11 @@ export class ObjectDetectorDevice implements IDeviceTelemetry {
         await commandResponse.send(200);
         await this.updateDeviceProperties({
             [IotcObjectDetectorInterface.Command.StopImageProcessing]: {
-                [CommandResponseParams.StatusCode]: 202,
-                [CommandResponseParams.Message]: `Received ${IotcObjectDetectorInterface.Command.StopImageProcessing} command for deviceId: ${this.deviceId}`,
-                [CommandResponseParams.Data]: ''
+                value: {
+                    [CommandResponseParams.StatusCode]: 202,
+                    [CommandResponseParams.Message]: `Received ${IotcObjectDetectorInterface.Command.StopImageProcessing} command for deviceId: ${this.deviceId}`,
+                    [CommandResponseParams.Data]: ''
+                }
             }
         });
     }
@@ -527,15 +527,21 @@ export class ObjectDetectorDevice implements IDeviceTelemetry {
     private async captureImageDirectMethod(commandRequest: DeviceMethodRequest, commandResponse: DeviceMethodResponse) {
         this.server.log(['ObjectDetectorDevice', 'info'], `Received device command: ${IotcObjectDetectorInterface.Command.CaptureImage}`);
 
+
+
         if (!this.inferenceProcessor) {
             await commandResponse.send(200);
             await this.updateDeviceProperties({
                 [IotcObjectDetectorInterface.Command.CaptureImage]: {
-                    [CommandResponseParams.StatusCode]: 202,
-                    [CommandResponseParams.Message]: `Unable to capture image. Image processing is not active`,
-                    [CommandResponseParams.Data]: ''
+                    value: {
+                        [CommandResponseParams.StatusCode]: 202,
+                        [CommandResponseParams.Message]: `Unable to capture image. Image processing is not active`,
+                        [CommandResponseParams.Data]: ''
+                    }
                 }
             });
+
+            return;
         }
 
         const imageUrl = await this.inferenceProcessor.captureImage();
@@ -543,9 +549,11 @@ export class ObjectDetectorDevice implements IDeviceTelemetry {
         await commandResponse.send(200);
         await this.updateDeviceProperties({
             [IotcObjectDetectorInterface.Command.CaptureImage]: {
-                [CommandResponseParams.StatusCode]: 202,
-                [CommandResponseParams.Message]: `The command ${IotcObjectDetectorInterface.Command.CaptureImage} for deviceId: ${this.deviceId} ${imageUrl ? 'completed successfully' : 'failed'}`,
-                [CommandResponseParams.Data]: ''
+                value: {
+                    [CommandResponseParams.StatusCode]: 202,
+                    [CommandResponseParams.Message]: `The command ${IotcObjectDetectorInterface.Command.CaptureImage} for deviceId: ${this.deviceId} ${imageUrl ? 'completed successfully' : 'failed'}`,
+                    [CommandResponseParams.Data]: ''
+                }
             }
         });
     }

@@ -131,14 +131,6 @@
                     {
                         "@type": "Telemetry",
                         "displayName": {
-                            "en": "Free Memory"
-                        },
-                        "name": "tlFreeMemory",
-                        "schema": "long"
-                    },
-                    {
-                        "@type": "Telemetry",
-                        "displayName": {
                             "en": "Inference Count"
                         },
                         "name": "tlInferenceCount",

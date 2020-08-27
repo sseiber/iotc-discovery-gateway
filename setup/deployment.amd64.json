@@ -42,8 +42,8 @@
                             "createOptions": "{\"HostConfig\":{\"PortBindings\":{\"9072/tcp\":[{\"HostPort\":\"9072\"}]},\"Binds\":[\"/data/storage:/data/storage\",\"/data/storage:/data/media/\"]}}"
                         },
                         "env": {
-                            "blobStoreRoot": {
-                                "value": "https://iotcsafileupload.blob.core.windows.net/file-upload-sample/"
+                            "sampleBlobImageUrl": {
+                                "value": ""
                             }
                         },
                         "type": "docker",
@@ -68,7 +68,7 @@
             "properties.desired": {
                 "schemaVersion": "1.0",
                 "routes": {
-                    "DiscoveryGatewayModuleOutput": "FROM /messages/modules/DiscoveryGatewayModuleModule/* INTO $upstream"
+                    "DiscoveryGatewayModuleOutput": "FROM /messages/modules/DiscoveryGatewayModule/* INTO $upstream"
                 },
                 "storeAndForwardConfiguration": {
                     "timeToLiveSecs": 7200
@@ -81,4 +81,4 @@
             }
         }
     }
-}
+}   

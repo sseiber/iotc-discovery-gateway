@@ -13,7 +13,7 @@ const composeOptions: ComposeOptions = {
     logCompose: {
         serializers: {
             req: (req) => {
-                return `${(req.method || '').toUpperCase()} ${req.url?.origin} ${req.url?.pathname}`;
+                return `${(req.method || '').toUpperCase()} ${req.headers?.host} ${req.url}`;
             },
             res: (res) => {
                 return `${res.statusCode} ${res.raw?.statusMessage}`;
