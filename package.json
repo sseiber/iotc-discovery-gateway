@@ -1,6 +1,6 @@
 {
     "name": "iotc-discovery-gateway",
-    "version": "1.0.9",
+    "version": "1.0.10",
     "description": "Azure IoT Central sample demonstrating Edge gateway device discovery",
     "main": "index.js",
     "scripts": {
