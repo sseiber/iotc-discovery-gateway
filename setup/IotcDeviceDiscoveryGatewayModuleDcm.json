@@ -1,25 +1,25 @@
 {
-    "@id": "urn:IoTCentral:IotcDiscoveryGatewayDcm:1",
+    "@id": "urn:IoTCentral:IotcDeviceDiscoveryGatewayDcm:1",
     "@type": "CapabilityModel",
     "implements": [],
     "displayName": {
-        "en": "IoT Central Discovery Gateway Sample"
+        "en": "IoT Central Device Discovery Gateway Sample"
     },
     "contents": [
         {
-            "@id": "urn:IoTCentral:IotcDiscoveryGatewayDcm:DiscoveryGatewayModule:1",
+            "@id": "urn:IoTCentral:IotcDeviceDiscoveryGatewayDcm:IotcDeviceDiscoveryGatewayModule:1",
             "@type": [
                 "Relationship",
                 "SemanticType/EdgeModule"
             ],
             "displayName": {
-                "en": "Discovery Gateway Module"
+                "en": "IoT Central Device Discovery Gateway Module"
             },
-            "name": "DiscoveryGatewayModule",
+            "name": "IotcDeviceDiscoveryGatewayModule",
             "maxMultiplicity": 1,
             "target": [
                 {
-                    "@id": "urn:IoTCentral:DiscoveryGatewayModule:1",
+                    "@id": "urn:IoTCentral:IotcDeviceDiscoveryGatewayModule:1",
                     "@type": "CapabilityModel",
                     "implements": [
                         {
@@ -29,7 +29,7 @@
                                 "en": "Device information"
                             },
                             "schema": {
-                                "@id": "urn:IoTCentral:DiscoveryGatewayModule:DeviceInformation:1",
+                                "@id": "urn:IoTCentral:IotcDeviceDiscoveryGatewayModule:DeviceInformation:1",
                                 "@type": "Interface",
                                 "displayName": {
                                     "en": "Device information"
@@ -130,14 +130,14 @@
                         {
                             "@type": "InterfaceInstance",
                             "displayName": {
-                                "en": "Discovery Gateway Interface"
+                                "en": "IoT Central Device Discovery Gateway Sample Interface"
                             },
-                            "name": "DiscoveryGatewayInterface",
+                            "name": "IotcDeviceDiscoveryGatewaySampleInterface",
                             "schema": {
-                                "@id": "urn:IoTCentral:DiscoveryGatewayModule:DiscoveryGatewayInterface:1",
+                                "@id": "urn:IoTCentral:IotcDeviceDiscoveryGatewayModule:IotcDeviceDiscoveryGatewaySampleInterface:1",
                                 "@type": "Interface",
                                 "displayName": {
-                                    "en": "Discovery Gateway Interface"
+                                    "en": "IoT Central Device Discovery Gateway Sample Interface"
                                 },
                                 "contents": [
                                     {
@@ -454,76 +454,6 @@
                                         "request": {
                                             "@type": "SchemaField",
                                             "displayName": {
-                                                "en": "Scan For Devices Request"
-                                            },
-                                            "name": "ScanForDevicesRequest",
-                                            "schema": {
-                                                "@type": "Object",
-                                                "displayName": {
-                                                    "en": "Object"
-                                                },
-                                                "fields": [
-                                                    {
-                                                        "@type": "SchemaField",
-                                                        "displayName": {
-                                                            "en": "Scan Time (sec)"
-                                                        },
-                                                        "name": "ScanForDevicesRequestParams_ScanTime",
-                                                        "schema": "long"
-                                                    }
-                                                ]
-                                            }
-                                        },
-                                        "response": {
-                                            "@type": "SchemaField",
-                                            "displayName": {
-                                                "en": "Command Response"
-                                            },
-                                            "name": "CommandResponse",
-                                            "schema": {
-                                                "@type": "Object",
-                                                "displayName": {
-                                                    "en": "Object"
-                                                },
-                                                "fields": [
-                                                    {
-                                                        "@type": "SchemaField",
-                                                        "displayName": {
-                                                            "en": "Status Code"
-                                                        },
-                                                        "name": "CommandResponseParams_StatusCode",
-                                                        "schema": "long"
-                                                    },
-                                                    {
-                                                        "@type": "SchemaField",
-                                                        "displayName": {
-                                                            "en": "Message"
-                                                        },
-                                                        "name": "CommandResponseParams_Message",
-                                                        "schema": "string"
-                                                    },
-                                                    {
-                                                        "@type": "SchemaField",
-                                                        "displayName": {
-                                                            "en": "Data"
-                                                        },
-                                                        "name": "CommandResponseParams_Data",
-                                                        "schema": "string"
-                                                    }
-                                                ]
-                                            }
-                                        },
-                                        "displayName": {
-                                            "en": "Scan For Devices"
-                                        },
-                                        "name": "cmScanForDevices"
-                                    },
-                                    {
-                                        "@type": "Command",
-                                        "commandType": "asynchronous",
-                                        "request": {
-                                            "@type": "SchemaField",
-                                            "displayName": {
                                                 "en": "Restart Module Request"
                                             },
                                             "name": "RestartModuleRequest",
@@ -587,6 +517,114 @@
                                             "en": "Restart Module"
                                         },
                                         "name": "cmRestartModule"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "@type": "InterfaceInstance",
+                            "displayName": {
+                                "en": "IoT Central Device Discovery Interface"
+                            },
+                            "name": "IotcDeviceDiscoveryInterface",
+                            "schema": {
+                                "@id": "urn:IoTCentral:IotcDeviceDiscoveryGatewayModule:IotcDeviceDiscoveryInterface:1",
+                                "@type": "Interface",
+                                "displayName": {
+                                    "en": "IoT Central Device Discovery Interface"
+                                },
+                                "contents": [
+                                    {
+                                        "@type": [
+                                            "Telemetry",
+                                            "SemanticType/Event"
+                                        ],
+                                        "displayName": {
+                                            "en": "Device Discovery Started"
+                                        },
+                                        "name": "evDeviceDiscoveryStarted",
+                                        "schema": "string"
+                                    },
+                                    {
+                                        "@type": [
+                                            "Telemetry",
+                                            "SemanticType/Event"
+                                        ],
+                                        "displayName": {
+                                            "en": "Device Discovery Completed"
+                                        },
+                                        "name": "evDeviceDiscoveryCompleted",
+                                        "schema": "string"
+                                    },
+                                    {
+                                        "@type": "Command",
+                                        "commandType": "asynchronous",
+                                        "request": {
+                                            "@type": "SchemaField",
+                                            "displayName": {
+                                                "en": "Scan For Devices Request"
+                                            },
+                                            "name": "ScanForDevicesRequest",
+                                            "schema": {
+                                                "@type": "Object",
+                                                "displayName": {
+                                                    "en": "Object"
+                                                },
+                                                "fields": [
+                                                    {
+                                                        "@type": "SchemaField",
+                                                        "displayName": {
+                                                            "en": "Scan Time (sec)"
+                                                        },
+                                                        "name": "ScanForDevicesRequestParams_ScanTimeout",
+                                                        "schema": "long"
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        "response": {
+                                            "@type": "SchemaField",
+                                            "displayName": {
+                                                "en": "Command Response"
+                                            },
+                                            "name": "CommandResponse",
+                                            "schema": {
+                                                "@type": "Object",
+                                                "displayName": {
+                                                    "en": "Object"
+                                                },
+                                                "fields": [
+                                                    {
+                                                        "@type": "SchemaField",
+                                                        "displayName": {
+                                                            "en": "Status Code"
+                                                        },
+                                                        "name": "CommandResponseParams_StatusCode",
+                                                        "schema": "long"
+                                                    },
+                                                    {
+                                                        "@type": "SchemaField",
+                                                        "displayName": {
+                                                            "en": "Message"
+                                                        },
+                                                        "name": "CommandResponseParams_Message",
+                                                        "schema": "string"
+                                                    },
+                                                    {
+                                                        "@type": "SchemaField",
+                                                        "displayName": {
+                                                            "en": "Data"
+                                                        },
+                                                        "name": "CommandResponseParams_Data",
+                                                        "schema": "string"
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        "displayName": {
+                                            "en": "Scan For Devices"
+                                        },
+                                        "name": "cmScanForDevices"
                                     }
                                 ]
                             }

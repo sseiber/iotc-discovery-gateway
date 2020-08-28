@@ -527,8 +527,6 @@ export class ObjectDetectorDevice implements IDeviceTelemetry {
     private async captureImageDirectMethod(commandRequest: DeviceMethodRequest, commandResponse: DeviceMethodResponse) {
         this.server.log(['ObjectDetectorDevice', 'info'], `Received device command: ${IotcObjectDetectorInterface.Command.CaptureImage}`);
 
-
-
         if (!this.inferenceProcessor) {
             await commandResponse.send(200);
             await this.updateDeviceProperties({

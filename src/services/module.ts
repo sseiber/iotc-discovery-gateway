@@ -76,12 +76,12 @@ interface IProvisionResult {
     deviceInstance: ObjectDetectorDevice;
 }
 
-enum IotcDiscoveryGatewaySettings {
+enum IotcDeviceDiscoveryGatewaySettings {
     DebugTelemetry = 'wpDebugTelemetry'
 }
 
-interface IIotcDiscoveryGatewaySettings {
-    [IotcDiscoveryGatewaySettings.DebugTelemetry]: boolean;
+interface IIotcDeviceDiscoveryGatewaySettings {
+    [IotcDeviceDiscoveryGatewaySettings.DebugTelemetry]: boolean;
 }
 
 enum IoTCentralClientState {
@@ -105,7 +105,7 @@ enum DeleteDeviceRequestParams {
 }
 
 enum ScanForDevicesRequestParams {
-    ScanTime = 'ScanForDevicesRequestParams_ScanTime'
+    ScanTimeout = 'ScanForDevicesRequestParams_ScanTimeout'
 }
 
 enum RestartModuleRequestParams {
@@ -118,7 +118,7 @@ enum CommandResponseParams {
     Data = 'CommandResponseParams_Data'
 }
 
-export const IotcDiscoveryGatewayInterface = {
+export const IotcDeviceDiscoveryGatewayInterface = {
     Telemetry: {
         SystemHeartbeat: 'tlSystemHeartbeat',
         FreeMemory: 'tlFreeMemory',
@@ -136,13 +136,22 @@ export const IotcDiscoveryGatewayInterface = {
         DeleteDevice: 'evDeleteDevice'
     },
     Setting: {
-        DebugTelemetry: IotcDiscoveryGatewaySettings.DebugTelemetry
+        DebugTelemetry: IotcDeviceDiscoveryGatewaySettings.DebugTelemetry
     },
     Command: {
         AddDevice: 'cmAddDevice',
         DeleteDevice: 'cmDeleteDevice',
-        ScanForDevices: 'cmScanForDevices',
         RestartModule: 'cmRestartModule'
+    }
+};
+
+export const IotcDeviceDiscoveryInterface = {
+    Event: {
+        DeviceDiscoveryStarted: 'evDeviceDiscoveryStarted',
+        DeviceDiscoveryCompleted: 'evDeviceDiscoveryCompleted'
+    },
+    Command: {
+        ScanForDevices: 'cmScanForDevices'
     }
 };
 
@@ -165,12 +174,11 @@ export class ModuleService {
     private moduleTwin: Twin = null;
     private iotEdgeDeviceId: string = '';
     private iotEdgeModuleId: string = '';
-    private onvifModuleId: string = '';
     private deferredStart = defer();
     private healthState = HealthState.Good;
     private healthCheckFailStreak: number = 0;
-    private moduleSettings: IIotcDiscoveryGatewaySettings = {
-        [IotcDiscoveryGatewaySettings.DebugTelemetry]: false
+    private moduleSettings: IIotcDeviceDiscoveryGatewaySettings = {
+        [IotcDeviceDiscoveryGatewaySettings.DebugTelemetry]: false
     };
     private iotCentralAppKeys: IIoTCentralAppKeys = {
         iotCentralAppHost: '',
@@ -191,13 +199,12 @@ export class ModuleService {
 
         this.iotEdgeDeviceId = this.config.get('IOTEDGE_DEVICEID') || '';
         this.iotEdgeModuleId = this.config.get('IOTEDGE_MODULEID') || '';
-        this.onvifModuleId = this.config.get('onvifModuleId') || '';
 
         this.healthCheckRetries = this.config.get('healthCheckRetries') || defaultHealthCheckRetries;
     }
 
     public debugTelemetry() {
-        return this.moduleSettings[IotcDiscoveryGatewaySettings.DebugTelemetry];
+        return this.moduleSettings[IotcDeviceDiscoveryGatewaySettings.DebugTelemetry];
     }
 
     @bind
@@ -234,8 +241,8 @@ export class ModuleService {
                 const systemProperties = await this.getSystemProperties();
                 const freeMemory = systemProperties?.freeMemory || 0;
 
-                healthTelemetry[IotcDiscoveryGatewayInterface.Telemetry.FreeMemory] = freeMemory;
-                healthTelemetry[IotcDiscoveryGatewayInterface.Telemetry.ConnectedDevices] = this.deviceMap.size;
+                healthTelemetry[IotcDeviceDiscoveryGatewayInterface.Telemetry.FreeMemory] = freeMemory;
+                healthTelemetry[IotcDeviceDiscoveryGatewayInterface.Telemetry.ConnectedDevices] = this.deviceMap.size;
 
                 // TODO:
                 // Find the right threshold for this metric
@@ -243,7 +250,7 @@ export class ModuleService {
                     healthState = HealthState.Critical;
                 }
 
-                healthTelemetry[IotcDiscoveryGatewayInterface.Telemetry.SystemHeartbeat] = healthState;
+                healthTelemetry[IotcDeviceDiscoveryGatewayInterface.Telemetry.SystemHeartbeat] = healthState;
 
                 await this.sendMeasurement(healthTelemetry);
             }
@@ -322,9 +329,9 @@ export class ModuleService {
 
         try {
             await this.sendMeasurement({
-                [IotcDiscoveryGatewayInterface.Event.ModuleRestart]: reason,
-                [IotcDiscoveryGatewayInterface.State.ModuleState]: ModuleState.Inactive,
-                [IotcDiscoveryGatewayInterface.Event.ModuleStopped]: 'Module restart'
+                [IotcDeviceDiscoveryGatewayInterface.Event.ModuleRestart]: reason,
+                [IotcDeviceDiscoveryGatewayInterface.State.ModuleState]: ModuleState.Inactive,
+                [IotcDeviceDiscoveryGatewayInterface.Event.ModuleStopped]: 'Module restart'
             });
 
             if (timeout > 0) {
@@ -429,10 +436,10 @@ export class ModuleService {
 
             this.moduleClient.on('error', this.onModuleClientError);
 
-            this.moduleClient.onMethod(IotcDiscoveryGatewayInterface.Command.AddDevice, this.addDeviceDirectMethod);
-            this.moduleClient.onMethod(IotcDiscoveryGatewayInterface.Command.DeleteDevice, this.deleteDeviceDirectMethod);
-            this.moduleClient.onMethod(IotcDiscoveryGatewayInterface.Command.ScanForDevices, this.scanForDevicesDirectMethod);
-            this.moduleClient.onMethod(IotcDiscoveryGatewayInterface.Command.RestartModule, this.restartModuleDirectMethod);
+            this.moduleClient.onMethod(IotcDeviceDiscoveryGatewayInterface.Command.AddDevice, this.addDeviceDirectMethod);
+            this.moduleClient.onMethod(IotcDeviceDiscoveryGatewayInterface.Command.DeleteDevice, this.deleteDeviceDirectMethod);
+            this.moduleClient.onMethod(IotcDeviceDiscoveryGatewayInterface.Command.RestartModule, this.restartModuleDirectMethod);
+            this.moduleClient.onMethod(IotcDeviceDiscoveryInterface.Command.ScanForDevices, this.scanForDevicesDirectMethod);
 
             this.server.log(['ModuleService', 'info'], `IoT Central successfully connected module: ${this.config.get('IOTEDGE_MODULEID')}, instance id: ${this.config.get('IOTEDGE_DEVICEID')}`);
         }
@@ -461,9 +468,9 @@ export class ModuleService {
         });
 
         await this.sendMeasurement({
-            [IotcDiscoveryGatewayInterface.State.IoTCentralClientState]: IoTCentralClientState.Connected,
-            [IotcDiscoveryGatewayInterface.State.ModuleState]: ModuleState.Active,
-            [IotcDiscoveryGatewayInterface.Event.ModuleStarted]: 'Module initialization'
+            [IotcDeviceDiscoveryGatewayInterface.State.IoTCentralClientState]: IoTCentralClientState.Connected,
+            [IotcDeviceDiscoveryGatewayInterface.State.ModuleState]: ModuleState.Active,
+            [IotcDeviceDiscoveryGatewayInterface.Event.ModuleStarted]: 'Module initialization'
         });
     }
 
@@ -555,7 +562,7 @@ export class ModuleService {
                 const value = desiredChangedSettings[setting];
 
                 switch (setting) {
-                    case IotcDiscoveryGatewayInterface.Setting.DebugTelemetry:
+                    case IotcDeviceDiscoveryGatewayInterface.Setting.DebugTelemetry:
                         patchedProperties[setting] = (this.moduleSettings[setting] as any) = value || false;
                         break;
 
@@ -576,86 +583,28 @@ export class ModuleService {
         this.deferredStart.resolve();
     }
 
-    private async invokeOnvifDirectMethod(methodName: string, payload: any): Promise<any> {
-        const methodParams = {
-            methodName,
-            payload,
-            connectTimeoutInSeconds: 30,
-            responseTimeoutInSeconds: 30
-        };
+    private async scanForDevices(scanTimeout: number): Promise<any> {
+        let scanResult = {};
 
-        const response = await this.moduleClient.invokeMethod(this.iotEdgeDeviceId, this.onvifModuleId, methodParams);
-        if (this.debugTelemetry() === true) {
-            this.server.log(['ModuleService', 'info'], `invokeOnvifDirectMethod response: ${JSON.stringify(response, null, 4)}`);
+        try {
+            this.server.log(['ModuleService', 'info'], `Starting network device scan for ${scanTimeout} milliseconds...`);
+
+            const discoveryData = this.storage.get('discoveryData');
+
+            scanResult = await new Promise((resolve) => {
+                setTimeout(() => {
+                    return resolve(discoveryData);
+                }, scanTimeout);
+            });
+
+            this.server.log(['ModuleService', 'info'], `Finished network device scan`);
+        }
+        catch (ex) {
+            this.server.log(['ModuleService', 'error'], `Exception while handling desired properties: ${ex.message}`);
         }
 
-        if (response.payload?.error) {
-            // throw new Error(`(from invokeMethod) ${response.payload.error?.message}`);
-            this.server.log(['ModuleService', 'error'], `invokeOnvifDirectMethod error: ${response.payload.error?.message}`);
-
-            return {
-                status: response.status,
-                payload: response.payload
-            };
-        }
-
-        return {
-            status: response.status,
-            payload: {}
-        };
+        return scanResult;
     }
-
-    // TODO:
-    // Move this into a separate plugin
-
-    // private async scanForDevices(scanTime: number): Promise<IOnvifCamera[]> {
-    //     try {
-    //         const hostDefaultRoute = await this.getHostDefaultRoute();
-    //         const scanMilliseconds = scanTime < 0 || scanTime > 60 ? 5000 : scanTime * 1000;
-
-    //         this.server.log(['ModuleService', 'info'], `Starting network device scan for ${scanTime} seconds...`);
-
-    //         const discoveryResponse = await this.makeRequest(
-    //             `http://${hostDefaultRoute}:5000/api/discovery/discover/${scanMilliseconds}`,
-    //             'post',
-    //             {
-    //                 json: true
-    //             });
-
-    //         const onvifDiscoveryResult = discoveryResponse?.payload || [];
-    //         if (Array.isArray(onvifDiscoveryResult)) {
-    //             this.server.log(['ModuleService', 'info'], `Finished network device scan - found ${onvifDiscoveryResult.length} devices`);
-
-    //             if (this.debugTelemetry() === true) {
-    //                 this.server.log(['ModuleService', 'info'], JSON.stringify(onvifDiscoveryResult, null, 4));
-    //             }
-
-    //             const discoveryResult = onvifDiscoveryResult.map((value): IOnvifCamera => {
-    //                 return {
-    //                     profile: value?.profile.join(',') || '',
-    //                     location: '',
-    //                     model: value?.hardware?.[0] || 'Unknown',
-    //                     name: value?.name?.[0] || 'Unknown',
-    //                     scopeUris: [
-    //                         ...value?.scopeUris
-    //                     ],
-    //                     xaddrs: [
-    //                         ...value?.xaddrs
-    //                     ],
-    //                     uuid: value?.uuid || '',
-    //                     ipAddress: value?.remoteAddress || ''
-    //                 };
-    //             });
-
-    //             return discoveryResult;
-    //         }
-    //     }
-    //     catch (ex) {
-    //         this.server.log(['ModuleService', 'error'], `Exception while handling desired properties: ${ex.message}`);
-    //     }
-
-    //     return [];
-    // }
 
     private async createDevice(deviceId: string, deviceName: string, rtspUrl: string): Promise<IProvisionResult> {
         this.server.log(['ModuleService', 'info'], `createDevice - deviceId: ${deviceId}, deviceName: ${deviceName}, rtspUrl: ${rtspUrl}`);
@@ -696,7 +645,7 @@ export class ModuleService {
             if (deviceProvisionResult.dpsProvisionStatus === true && deviceProvisionResult.clientConnectionStatus === true) {
                 this.deviceMap.set(deviceId, deviceProvisionResult.deviceInstance);
 
-                await this.sendMeasurement({ [IotcDiscoveryGatewayInterface.Event.CreateDevice]: deviceId });
+                await this.sendMeasurement({ [IotcDeviceDiscoveryGatewayInterface.Event.CreateDevice]: deviceId });
 
                 this.server.log(['ModuleService', 'info'], `Succesfully provisioned device with id: ${deviceId}`);
             }
@@ -807,7 +756,7 @@ export class ModuleService {
                         json: true
                     });
 
-                await this.sendMeasurement({ [IotcDiscoveryGatewayInterface.Event.DeleteDevice]: deviceId });
+                await this.sendMeasurement({ [IotcDeviceDiscoveryGatewayInterface.Event.DeleteDevice]: deviceId });
 
                 this.server.log(['ModuleService', 'info'], `Succesfully de-provisioned device with id: ${deviceId}`);
 
@@ -830,7 +779,7 @@ export class ModuleService {
 
     @bind
     private async addDeviceDirectMethod(commandRequest: DeviceMethodRequest, commandResponse: DeviceMethodResponse) {
-        this.server.log(['ModuleService', 'info'], `${IotcDiscoveryGatewayInterface.Command.AddDevice} command received`);
+        this.server.log(['ModuleService', 'info'], `${IotcDeviceDiscoveryGatewayInterface.Command.AddDevice} command received`);
 
         try {
             const deviceId = commandRequest?.payload?.[AddDeviceRequestParams.DeviceId];
@@ -840,10 +789,10 @@ export class ModuleService {
             if (!deviceId || !deviceName || !rtspUrl) {
                 await commandResponse.send(202);
                 await this.updateModuleProperties({
-                    [IotcDiscoveryGatewayInterface.Command.AddDevice]: {
+                    [IotcDeviceDiscoveryGatewayInterface.Command.AddDevice]: {
                         value: {
                             [CommandResponseParams.StatusCode]: 202,
-                            [CommandResponseParams.Message]: `The ${IotcDiscoveryGatewayInterface.Command.AddDevice} command is missing required parameters, deviceId, deviceName, rtspUrl`,
+                            [CommandResponseParams.Message]: `The ${IotcDeviceDiscoveryGatewayInterface.Command.AddDevice} command is missing required parameters, deviceId, deviceName, rtspUrl`,
                             [CommandResponseParams.Data]: ''
                         }
                     }
@@ -856,7 +805,7 @@ export class ModuleService {
 
             await commandResponse.send(202);
             await this.updateModuleProperties({
-                [IotcDiscoveryGatewayInterface.Command.AddDevice]: {
+                [IotcDeviceDiscoveryGatewayInterface.Command.AddDevice]: {
                     value: {
                         [CommandResponseParams.StatusCode]: 202,
                         [CommandResponseParams.Message]: provisionResult.clientConnectionMessage,
@@ -872,16 +821,16 @@ export class ModuleService {
 
     @bind
     private async deleteDeviceDirectMethod(commandRequest: DeviceMethodRequest, commandResponse: DeviceMethodResponse) {
-        this.server.log(['ModuleService', 'info'], `${IotcDiscoveryGatewayInterface.Command.DeleteDevice} command received`);
+        this.server.log(['ModuleService', 'info'], `${IotcDeviceDiscoveryGatewayInterface.Command.DeleteDevice} command received`);
 
         try {
             const deviceId = commandRequest?.payload?.[DeleteDeviceRequestParams.DeviceId];
             if (!deviceId) {
                 await commandResponse.send(202);
                 await this.updateModuleProperties({
-                    [IotcDiscoveryGatewayInterface.Command.DeleteDevice]: {
+                    [IotcDeviceDiscoveryGatewayInterface.Command.DeleteDevice]: {
                         [CommandResponseParams.StatusCode]: 202,
-                        [CommandResponseParams.Message]: `The ${IotcDiscoveryGatewayInterface.Command.DeleteDevice} command requires a Device Id parameter`,
+                        [CommandResponseParams.Message]: `The ${IotcDeviceDiscoveryGatewayInterface.Command.DeleteDevice} command requires a Device Id parameter`,
                         [CommandResponseParams.Data]: ''
                     }
                 });
@@ -893,12 +842,12 @@ export class ModuleService {
 
             await commandResponse.send(202);
             await this.updateModuleProperties({
-                [IotcDiscoveryGatewayInterface.Command.DeleteDevice]: {
+                [IotcDeviceDiscoveryGatewayInterface.Command.DeleteDevice]: {
                     value: {
                         [CommandResponseParams.StatusCode]: 202,
                         [CommandResponseParams.Message]: deleteResult
-                            ? `The ${IotcDiscoveryGatewayInterface.Command.DeleteDevice} command succeeded`
-                            : `An error occurred while executing the ${IotcDiscoveryGatewayInterface.Command.DeleteDevice} command`,
+                            ? `The ${IotcDeviceDiscoveryGatewayInterface.Command.DeleteDevice} command succeeded`
+                            : `An error occurred while executing the ${IotcDeviceDiscoveryGatewayInterface.Command.DeleteDevice} command`,
                         [CommandResponseParams.Data]: ''
                     }
                 }
@@ -911,23 +860,21 @@ export class ModuleService {
 
     @bind
     private async scanForDevicesDirectMethod(commandRequest: DeviceMethodRequest, commandResponse: DeviceMethodResponse) {
-        this.server.log(['ModuleService', 'info'], `${IotcDiscoveryGatewayInterface.Command.ScanForDevices} command received`);
+        this.server.log(['ModuleService', 'info'], `${IotcDeviceDiscoveryInterface.Command.ScanForDevices} command received`);
 
         try {
-            const scanTimeout = commandRequest?.payload?.[ScanForDevicesRequestParams.ScanTime] || 5;
+            const scanTimeout = commandRequest?.payload?.[ScanForDevicesRequestParams.ScanTimeout] || 5;
 
-            const scanResult = await this.invokeOnvifDirectMethod('discover', {
-                timeout: scanTimeout < 0 || scanTimeout > 60 ? 5000 : scanTimeout * 1000
-            });
+            const scanResult = await this.scanForDevices(scanTimeout < 0 || scanTimeout > 60 ? 5000 : scanTimeout * 1000);
 
             await commandResponse.send(202);
             await this.updateModuleProperties({
-                [IotcDiscoveryGatewayInterface.Command.ScanForDevices]: {
+                [IotcDeviceDiscoveryInterface.Command.ScanForDevices]: {
                     value: {
                         [CommandResponseParams.StatusCode]: 202,
                         [CommandResponseParams.Message]: scanResult.status === 200
-                            ? `The ${IotcDiscoveryGatewayInterface.Command.ScanForDevices} command succeeded`
-                            : `An error occurred while executing the ${IotcDiscoveryGatewayInterface.Command.ScanForDevices} command`,
+                            ? `The ${IotcDeviceDiscoveryInterface.Command.ScanForDevices} command succeeded`
+                            : `An error occurred while executing the ${IotcDeviceDiscoveryInterface.Command.ScanForDevices} command`,
                         [CommandResponseParams.Data]: JSON.stringify(scanResult.payload, null, 4)
                     }
                 }
@@ -940,13 +887,13 @@ export class ModuleService {
 
     @bind
     private async restartModuleDirectMethod(commandRequest: DeviceMethodRequest, commandResponse: DeviceMethodResponse) {
-        this.server.log(['ModuleService', 'info'], `${IotcDiscoveryGatewayInterface.Command.RestartModule} command received`);
+        this.server.log(['ModuleService', 'info'], `${IotcDeviceDiscoveryGatewayInterface.Command.RestartModule} command received`);
 
         try {
             // sending response before processing, since this is a restart request
             await commandResponse.send(200);
             await this.updateModuleProperties({
-                [IotcDiscoveryGatewayInterface.Command.RestartModule]: {
+                [IotcDeviceDiscoveryGatewayInterface.Command.RestartModule]: {
                     value: {
                         [CommandResponseParams.StatusCode]: 202,
                         [CommandResponseParams.Message]: 'Received command to restart the module',
@@ -958,7 +905,7 @@ export class ModuleService {
             await this.restartModule(commandRequest?.payload?.[RestartModuleRequestParams.Timeout] || 0, 'RestartModule command received');
         }
         catch (ex) {
-            this.server.log(['ModuleService', 'error'], `Error sending response for ${IotcDiscoveryGatewayInterface.Command.RestartModule} command: ${ex.message}`);
+            this.server.log(['ModuleService', 'error'], `Error sending response for ${IotcDeviceDiscoveryGatewayInterface.Command.RestartModule} command: ${ex.message}`);
         }
     }
 
